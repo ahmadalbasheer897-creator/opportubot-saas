@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: opportubot-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opportubot-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        value: 07b618bd1d7179092191b332c6619cfcadc0345b
+      - key: RAPIDAPI_KEY
+        value: a54b63e366msh560994524e87b12p191d39jsn98a3afad2490
+      - key: FRONTEND_URL
+        value: https://prismatic-kelpie-ece144.netlify.app
+      - key: OWNER_EMAIL
+        value: ahmadalbasheer.897@gmail.com
+
+databases:
+  - name: opportubot-db
+    plan: free
