@@ -16,11 +16,9 @@ settings = get_settings()
 
 @router.post("/register", response_model=Token, status_code=201)
 def register(data: UserCreate, db: Session = Depends(get_db)):
-    # Check duplicate email
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Assign plan
     plan = PlanType.owner if data.email == settings.OWNER_EMAIL else PlanType.free
 
     user = User(
@@ -43,7 +41,6 @@ async def login(
     password: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    # Accept both JSON body and form-urlencoded
     user_email = (data.email if data else None) or email
     user_password = (data.password if data else None) or password
     if not user_email or not user_password:
@@ -69,7 +66,6 @@ def refresh_token(data: TokenRefresh, db: Session = Depends(get_db)):
     except JWTError:
         raise credentials_exception
 
-    # Verify token exists in DB
     stored = db.query(RefreshToken).filter(RefreshToken.token == data.refresh_token).first()
     if not stored:
         raise credentials_exception
@@ -78,7 +74,6 @@ def refresh_token(data: TokenRefresh, db: Session = Depends(get_db)):
     if not user or not user.is_active:
         raise credentials_exception
 
-    # Rotate refresh token
     db.delete(stored)
     db.commit()
 
@@ -96,4 +91,19 @@ def logout(data: TokenRefresh, db: Session = Depends(get_db)):
 
 def _issue_tokens(user: User, db: Session) -> dict:
     access_token = create_access_token({"sub": str(user.id)})
-    refresh_to
+    refresh_token_str = create_refresh_token({"sub": str(user.id)})
+
+    expires = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    db_token = RefreshToken(user_id=user.id, token=refresh_token_str, expires_at=expires)
+    db.add(db_token)
+    db.commit()
+
+    return {
+        "access_token": access_token,
+        "token": access_token,
+        "refresh_token": refresh_token_str,
+        "token_type": "bearer",
+        "plan": user.plan.value if hasattr(user.plan, "value") else str(user.plan),
+        "is_owner": user.plan.value == "owner" if hasattr(user.plan, "value") else str(user.plan) == "owner",
+        "user": user,
+    }
