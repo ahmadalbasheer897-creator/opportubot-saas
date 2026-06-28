@@ -44,15 +44,18 @@ async def run_pipeline(
 
     saved = 0
     for r in results:
+        # r is a SearchResult Pydantic model — use dot notation
+        r_url = r.url if hasattr(r, 'url') else r.get("url") if isinstance(r, dict) else ""
+
         # Skip duplicates
         existing = db.query(UserOpportunity).filter(
             UserOpportunity.user_id == current_user.id,
-            UserOpportunity.url == r.get("url"),
+            UserOpportunity.url == r_url,
         ).first()
         if existing:
             continue
 
-        opp_type_str = r.get("type", "job")
+        opp_type_str = (r.type if hasattr(r, 'type') else r.get("type", "job") if isinstance(r, dict) else "job") or "job"
         try:
             opp_type = OpportunityType(opp_type_str)
         except Exception:
@@ -60,16 +63,16 @@ async def run_pipeline(
 
         opp = UserOpportunity(
             user_id=current_user.id,
-            title=r.get("title", "Untitled"),
+            title=(r.title if hasattr(r, 'title') else r.get("title", "Untitled") if isinstance(r, dict) else "Untitled") or "Untitled",
             type=opp_type,
-            description=r.get("description", ""),
-            url=r.get("url", ""),
-            source=r.get("source", ""),
-            country=r.get("country", ""),
-            deadline=r.get("deadline", ""),
-            score=r.get("score", 50),
+            description=r.description if hasattr(r, 'description') else (r.get("description", "") if isinstance(r, dict) else ""),
+            url=r_url,
+            source=r.source if hasattr(r, 'source') else (r.get("source", "") if isinstance(r, dict) else ""),
+            country=r.country if hasattr(r, 'country') else (r.get("country", "") if isinstance(r, dict) else ""),
+            deadline=r.deadline if hasattr(r, 'deadline') else (r.get("deadline", "") if isinstance(r, dict) else ""),
+            score=50,
             status="new",
-            tags=r.get("tags", ""),
+            tags=r.tags if hasattr(r, 'tags') else (r.get("tags", "") if isinstance(r, dict) else ""),
         )
         db.add(opp)
         saved += 1
@@ -114,30 +117,4 @@ def _build_plan(user: User):
     return {
         "plan": plan_key,
         "daily_searches_used": user.daily_searches,
-        **plan_info,
-    }
-
-
-@router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
-
-
-@router.put("/me", response_model=UserOut)
-def update_me(
-    data: UserUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    if data.name:
-        current_user.name = data.name
-    if data.password:
-        current_user.password_hash = hash_password(data.password)
-    db.commit()
-    db.refresh(current_user)
-    return current_user
-
-
-@router.get("/plan")
-def get_plan(current_user: User = Depends(get_current_user)):
-    return _build_plan(current_user)
+ 
