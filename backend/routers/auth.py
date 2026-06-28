@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 from database import get_db
 from models.models import User, RefreshToken, PlanType
-from schemas.schemas import UserCreate, UserLogin, Token, TokenRefresh
+from schemas.schemas import UserCreate, Token, TokenRefresh
 from auth import hash_password, verify_password, create_access_token, create_refresh_token
 from config import get_settings
 from jose import JWTError, jwt
@@ -34,12 +35,27 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(data: UserLogin, db: Session = Depends(get_db)):
-    if not data.email or not data.password:
+async def login(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        body = await request.json()
+        user_email = body.get("email") or body.get("username")
+        user_password = body.get("password")
+    else:
+        # form-urlencoded
+        form = await request.form()
+        user_email = form.get("email") or form.get("username")
+        user_password = form.get("password")
+
+    if not user_email or not user_password:
         raise HTTPException(status_code=422, detail="Email and password are required")
 
-    user = db.query(User).filter(User.email == data.email).first()
-    if not user or not verify_password(data.password, user.password_hash):
+    user = db.query(User).filter(User.email == user_email).first()
+    if not user or not verify_password(user_password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
