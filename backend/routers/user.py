@@ -155,6 +155,27 @@ async def run_pipeline(
     current_user.daily_searches += 1
     db.commit()
 
+    # Send email notification with top results (non-blocking)
+    if saved > 0 and current_user.email_verified:
+        import asyncio
+        from services.email_service import send_pipeline_results_email
+        top_opps = (
+            db.query(UserOpportunity)
+            .filter(UserOpportunity.user_id == current_user.id)
+            .order_by(UserOpportunity.score.desc())
+            .limit(5)
+            .all()
+        )
+        opps_data = [
+            {"title": o.title, "score": o.score, "url": o.url or "#"}
+            for o in top_opps
+        ]
+        asyncio.create_task(
+            send_pipeline_results_email(
+                current_user.email, current_user.name, opps_data, saved
+            )
+        )
+
     return {
         "message": f"Pipeline completed. Found {saved} new opportunities with AI scoring.",
         "status": "completed",

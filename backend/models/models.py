@@ -35,11 +35,21 @@ class User(Base):
     daily_searches = Column(Integer, default=0)
     last_search_reset = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Email verification
+    email_verified = Column(Boolean, default=False)
+    verification_token = Column(String(255), nullable=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
+
+    # Password reset
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+
     # CV & profile fields
-    cv_text = Column(Text, nullable=True)            # raw extracted CV text
-    profile_summary = Column(Text, nullable=True)    # Claude-generated profile summary
-    skills = Column(Text, nullable=True)             # comma-separated skills
-    cv_filename = Column(String(255), nullable=True) # original filename
+    cv_text = Column(Text, nullable=True)
+    profile_summary = Column(Text, nullable=True)
+    skills = Column(Text, nullable=True)
+    cv_filename = Column(String(255), nullable=True)
 
     saved = relationship("SavedOpportunity", back_populates="user", cascade="all, delete")
     searches = relationship("SearchHistory", back_populates="user", cascade="all, delete")
@@ -117,7 +127,7 @@ class UserOpportunity(Base):
     score = Column(Integer, default=0)
     status = Column(String(50), default="new")
     tags = Column(Text)
-    ai_analysis = Column(Text, nullable=True)   # Claude's analysis text
+    ai_analysis = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="user_opportunities")

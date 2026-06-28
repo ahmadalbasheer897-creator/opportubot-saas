@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     OWNER_EMAIL: str = "ahmadalbasheer.897@gmail.com"
     FRONTEND_URL: str = "https://prismatic-kelpie-ece144.netlify.app"
 
+    # SMTP (Email)
+    SMTP_HOST: str = ""           # e.g. smtp.gmail.com
+    SMTP_PORT: int = 587          # 587 for TLS, 465 for SSL
+    SMTP_USER: str = ""           # your Gmail address
+    SMTP_PASSWORD: str = ""       # Gmail App Password (not your main password)
+
     class Config:
         env_file = ".env"
         extra = "ignore"

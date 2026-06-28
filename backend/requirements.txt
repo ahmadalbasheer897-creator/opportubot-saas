@@ -13,3 +13,4 @@ anthropic==0.28.0
 python-multipart==0.0.9
 email-validator==2.1.1
 pdfminer.six==20221105
+aiosmtplib==3.0.1
