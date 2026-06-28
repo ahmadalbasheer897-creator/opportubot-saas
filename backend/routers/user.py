@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models.models import User, SavedOpportunity
+from models.models import User, UserOpportunity, OpportunityType, PlanType
 from schemas.schemas import UserOut, UserUpdate
 from auth import get_current_user, hash_password
 
 router = APIRouter(prefix="/user", tags=["User"])
 
-# ── /profile alias (frontend uses /profile not /user/me) ──────────────────────
+# ── /profile alias ──────────────────────────────────────────────────────────────
 profile_router = APIRouter(tags=["Profile"])
 
 @profile_router.get("/profile", response_model=UserOut)
@@ -23,14 +23,70 @@ async def upload_cv(current_user: User = Depends(get_current_user)):
 def get_plan_top(current_user: User = Depends(get_current_user)):
     return _build_plan(current_user)
 
-# ── /pipeline stub ─────────────────────────────────────────────────────────────
+# ── /pipeline ────────────────────────────────────────────────────────────────────
 pipeline_router = APIRouter(tags=["Pipeline"])
 
 @pipeline_router.post("/pipeline/run")
-def run_pipeline(current_user: User = Depends(get_current_user)):
-    return {"message": "Pipeline started successfully", "status": "started"}
+async def run_pipeline(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run AI opportunity search and save results for the user."""
+    from services.search_service import search_opportunities
 
-# ── /gifts stub ────────────────────────────────────────────────────────────────
+    # Build query based on user profile (generic for now)
+    query = "software engineer jobs scholarships internships 2024 2025"
+
+    try:
+        results = await search_opportunities(query=query, limit=20)
+    except Exception as e:
+        return {"message": f"Pipeline error: {str(e)}", "status": "error", "count": 0}
+
+    saved = 0
+    for r in results:
+        # Skip duplicates
+        existing = db.query(UserOpportunity).filter(
+            UserOpportunity.user_id == current_user.id,
+            UserOpportunity.url == r.get("url"),
+        ).first()
+        if existing:
+            continue
+
+        opp_type_str = r.get("type", "job")
+        try:
+            opp_type = OpportunityType(opp_type_str)
+        except Exception:
+            opp_type = OpportunityType.job
+
+        opp = UserOpportunity(
+            user_id=current_user.id,
+            title=r.get("title", "Untitled"),
+            type=opp_type,
+            description=r.get("description", ""),
+            url=r.get("url", ""),
+            source=r.get("source", ""),
+            country=r.get("country", ""),
+            deadline=r.get("deadline", ""),
+            score=r.get("score", 50),
+            status="new",
+            tags=r.get("tags", ""),
+        )
+        db.add(opp)
+        saved += 1
+
+    db.commit()
+
+    # Increment search count
+    current_user.daily_searches += 1
+    db.commit()
+
+    return {
+        "message": f"Pipeline completed. Found {saved} new opportunities.",
+        "status": "completed",
+        "count": saved,
+    }
+
+# ── /gifts ────────────────────────────────────────────────────────────────────────
 gifts_router = APIRouter(tags=["Gifts"])
 
 @gifts_router.post("/gifts/redeem")
@@ -41,7 +97,9 @@ def redeem_gift(
 ):
     if not code.upper().startswith("OB-"):
         raise HTTPException(status_code=400, detail="Invalid gift code")
-    return {"message": "Gift code accepted", "plan": "pro"}
+    current_user.plan = PlanType.gift
+    db.commit()
+    return {"message": "Gift code accepted! Plan upgraded to Pro.", "plan": "gift"}
 
 
 def _build_plan(user: User):

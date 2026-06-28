@@ -94,3 +94,24 @@ class RefreshToken(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="refresh_tokens")
+
+
+class UserOpportunity(Base):
+    """Per-user tracked opportunities with status and score."""
+    __tablename__ = "user_opportunities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(500), nullable=False)
+    type = Column(Enum(OpportunityType), nullable=False, default=OpportunityType.job)
+    description = Column(Text)
+    url = Column(String(1000))
+    source = Column(String(255))
+    country = Column(String(100))
+    deadline = Column(String(100))
+    score = Column(Integer, default=0)
+    status = Column(String(50), default="new")  # new, analyzed, applied, accepted, rejected
+    tags = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="user_opportunities")
