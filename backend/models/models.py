@@ -35,6 +35,11 @@ class User(Base):
     daily_searches = Column(Integer, default=0)
     last_search_reset = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # CV & profile fields
+    cv_text = Column(Text, nullable=True)            # raw extracted CV text
+    profile_summary = Column(Text, nullable=True)    # Claude-generated profile summary
+    skills = Column(Text, nullable=True)             # comma-separated skills
+    cv_filename = Column(String(255), nullable=True) # original filename
 
     saved = relationship("SavedOpportunity", back_populates="user", cascade="all, delete")
     searches = relationship("SearchHistory", back_populates="user", cascade="all, delete")
@@ -51,7 +56,7 @@ class Opportunity(Base):
     deadline = Column(String(100))
     url = Column(String(1000))
     source = Column(String(255))
-    tags = Column(Text)  # comma-separated
+    tags = Column(Text)
     country = Column(String(100))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -77,7 +82,7 @@ class SearchHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     query = Column(String(500), nullable=False)
-    filters = Column(Text)  # JSON string
+    filters = Column(Text)
     results_count = Column(Integer, default=0)
     searched_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -110,8 +115,9 @@ class UserOpportunity(Base):
     country = Column(String(100))
     deadline = Column(String(100))
     score = Column(Integer, default=0)
-    status = Column(String(50), default="new")  # new, analyzed, applied, accepted, rejected
+    status = Column(String(50), default="new")
     tags = Column(Text)
+    ai_analysis = Column(Text, nullable=True)   # Claude's analysis text
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="user_opportunities")
