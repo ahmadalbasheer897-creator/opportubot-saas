@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 from database import get_db
 from models.models import User, RefreshToken, PlanType
@@ -23,7 +24,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     plan = PlanType.owner if data.email == settings.OWNER_EMAIL else PlanType.free
 
     user = User(
-        name=data.name,
+        name=data.get_name(),
         email=data.email,
         password_hash=hash_password(data.password),
         plan=plan,
@@ -36,9 +37,20 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
-    if not user or not verify_password(data.password, user.password_hash):
+async def login(
+    data: Optional[UserLogin] = None,
+    email: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    # Accept both JSON body and form-urlencoded
+    user_email = (data.email if data else None) or email
+    user_password = (data.password if data else None) or password
+    if not user_email or not user_password:
+        raise HTTPException(status_code=422, detail="Email and password are required")
+
+    user = db.query(User).filter(User.email == user_email).first()
+    if not user or not verify_password(user_password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
@@ -84,17 +96,4 @@ def logout(data: TokenRefresh, db: Session = Depends(get_db)):
 
 def _issue_tokens(user: User, db: Session) -> dict:
     access_token = create_access_token({"sub": str(user.id)})
-    refresh_token_str = create_refresh_token({"sub": str(user.id)})
-
-    # Store refresh token
-    expires = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    db_token = RefreshToken(user_id=user.id, token=refresh_token_str, expires_at=expires)
-    db.add(db_token)
-    db.commit()
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token_str,
-        "token_type": "bearer",
-        "user": user,
-    }
+    refresh_to

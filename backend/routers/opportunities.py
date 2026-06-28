@@ -16,6 +16,25 @@ router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
 FREE_DAILY_LIMIT = 5
 
 
+@router.get("/stats")
+def get_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return per-user search stats for the dashboard."""
+    total = db.query(SearchHistory).filter(SearchHistory.user_id == current_user.id).count()
+    return {
+        "total": total,
+        "ready": 0,
+        "applied": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "deadline_soon": 0,
+        "daily_searches": current_user.daily_searches,
+        "plan": current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan),
+    }
+
+
 def _check_and_increment_search(user: User, db: Session):
     """Check daily search limit and increment counter."""
     now = datetime.now(timezone.utc)
@@ -71,29 +90,4 @@ async def search(
         results=results,
         total=len(results),
         query=request.query,
-        ai_summary=ai_summary,
-    )
-
-
-@router.get("/history")
-def search_history(
-    limit: int = Query(10, le=50),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    history = (
-        db.query(SearchHistory)
-        .filter(SearchHistory.user_id == current_user.id)
-        .order_by(SearchHistory.searched_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return [
-        {
-            "id": h.id,
-            "query": h.query,
-            "results_count": h.results_count,
-            "searched_at": h.searched_at,
-        }
-        for h in history
-    ]
+        ai_su

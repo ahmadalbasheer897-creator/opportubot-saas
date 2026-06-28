@@ -7,9 +7,13 @@ from models.models import PlanType, OpportunityType
 # ─── Auth ───────────────────────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
-    name: str
+    name: Optional[str] = None
+    full_name: Optional[str] = None  # frontend sends full_name
     email: EmailStr
     password: str
+
+    def get_name(self) -> str:
+        return self.full_name or self.name or "User"
 
 
 class UserLogin(BaseModel):
@@ -37,8 +41,11 @@ class UserUpdate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    token: str  # alias for frontend compatibility
     refresh_token: str
     token_type: str = "bearer"
+    plan: str
+    is_owner: bool
     user: UserOut
 
 
@@ -112,15 +119,4 @@ class SearchResponse(BaseModel):
     ai_summary: Optional[str] = None
 
 
-# ─── Admin ───────────────────────────────────────────────────────────────────
-
-class UpdateUserPlan(BaseModel):
-    plan: PlanType
-
-
-class AdminUserOut(UserOut):
-    daily_searches: int
-    last_search_reset: Optional[datetime]
-
-    class Config:
-        from_attributes = True
+# ─── Admin ──────────────────────────────────────────────────�
