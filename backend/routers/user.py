@@ -8,7 +8,7 @@ from auth import get_current_user, hash_password
 
 router = APIRouter(prefix="/user", tags=["User"])
 
-# ── /profile alias ──────────────────────────────────────────────────────────────
+# ── /profile alias ────────────────────────────────────────────────────────────
 profile_router = APIRouter(tags=["Profile"])
 
 @profile_router.get("/profile", response_model=UserOut)
@@ -23,7 +23,7 @@ async def upload_cv(current_user: User = Depends(get_current_user)):
 def get_plan_top(current_user: User = Depends(get_current_user)):
     return _build_plan(current_user)
 
-# ── /pipeline ────────────────────────────────────────────────────────────────────
+# ── /pipeline ─────────────────────────────────────────────────────────────────
 pipeline_router = APIRouter(tags=["Pipeline"])
 
 @pipeline_router.post("/pipeline/run")
@@ -34,7 +34,6 @@ async def run_pipeline(
     """Run AI opportunity search and save results for the user."""
     from services.search_service import search_opportunities
 
-    # Build query based on user profile (generic for now)
     query = "software engineer jobs scholarships internships 2024 2025"
 
     try:
@@ -44,42 +43,45 @@ async def run_pipeline(
 
     saved = 0
     for r in results:
-        # r is a SearchResult Pydantic model — use dot notation
-        r_url = r.url if hasattr(r, 'url') else r.get("url") if isinstance(r, dict) else ""
+        # r is a SearchResult Pydantic model — use attribute access
+        r_url   = getattr(r, "url", None) or ""
+        r_title = getattr(r, "title", None) or "Untitled"
+        r_type  = getattr(r, "type", None) or "job"
+        r_desc  = getattr(r, "description", None) or ""
+        r_src   = getattr(r, "source", None) or ""
+        r_ctry  = getattr(r, "country", None) or ""
+        r_ddl   = getattr(r, "deadline", None) or ""
+        r_tags  = getattr(r, "tags", None) or ""
 
-        # Skip duplicates
-        existing = db.query(UserOpportunity).filter(
+        # Skip duplicates by URL
+        if r_url and db.query(UserOpportunity).filter(
             UserOpportunity.user_id == current_user.id,
             UserOpportunity.url == r_url,
-        ).first()
-        if existing:
+        ).first():
             continue
 
-        opp_type_str = (r.type if hasattr(r, 'type') else r.get("type", "job") if isinstance(r, dict) else "job") or "job"
         try:
-            opp_type = OpportunityType(opp_type_str)
+            opp_type = OpportunityType(r_type)
         except Exception:
             opp_type = OpportunityType.job
 
         opp = UserOpportunity(
             user_id=current_user.id,
-            title=(r.title if hasattr(r, 'title') else r.get("title", "Untitled") if isinstance(r, dict) else "Untitled") or "Untitled",
+            title=r_title,
             type=opp_type,
-            description=r.description if hasattr(r, 'description') else (r.get("description", "") if isinstance(r, dict) else ""),
+            description=r_desc,
             url=r_url,
-            source=r.source if hasattr(r, 'source') else (r.get("source", "") if isinstance(r, dict) else ""),
-            country=r.country if hasattr(r, 'country') else (r.get("country", "") if isinstance(r, dict) else ""),
-            deadline=r.deadline if hasattr(r, 'deadline') else (r.get("deadline", "") if isinstance(r, dict) else ""),
+            source=r_src,
+            country=r_ctry,
+            deadline=r_ddl,
             score=50,
             status="new",
-            tags=r.tags if hasattr(r, 'tags') else (r.get("tags", "") if isinstance(r, dict) else ""),
+            tags=r_tags,
         )
         db.add(opp)
         saved += 1
 
     db.commit()
-
-    # Increment search count
     current_user.daily_searches += 1
     db.commit()
 
@@ -89,7 +91,7 @@ async def run_pipeline(
         "count": saved,
     }
 
-# ── /gifts ────────────────────────────────────────────────────────────────────────
+# ── /gifts ────────────────────────────────────────────────────────────────────
 gifts_router = APIRouter(tags=["Gifts"])
 
 @gifts_router.post("/gifts/redeem")
@@ -117,4 +119,30 @@ def _build_plan(user: User):
     return {
         "plan": plan_key,
         "daily_searches_used": user.daily_searches,
- 
+        **plan_info,
+    }
+
+
+@router.get("/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.put("/me", response_model=UserOut)
+def update_me(
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if data.name:
+        current_user.name = data.name
+    if data.password:
+        current_user.password_hash = hash_password(data.password)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.get("/plan")
+def get_plan(current_user: User = Depends(get_current_user)):
+    return _build_plan(current_user)
