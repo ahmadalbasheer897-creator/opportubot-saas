@@ -34,7 +34,7 @@ def list_opportunities(
     if status:
         q = q.filter(UserOpportunity.status == status)
     items = q.order_by(UserOpportunity.score.desc()).limit(limit).all()
-    return [
+    opps = [
         {
             "id": o.id,
             "title": o.title,
@@ -51,6 +51,7 @@ def list_opportunities(
         }
         for o in items
     ]
+    return {"opportunities": opps, "total": len(opps)}
 
 
 @router.patch("/{opp_id}/status")
@@ -80,11 +81,11 @@ def get_stats(
     db: Session = Depends(get_db),
 ):
     base = db.query(UserOpportunity).filter(UserOpportunity.user_id == current_user.id)
-    total     = base.count()
-    ready     = base.filter(UserOpportunity.status == "analyzed").count()
-    applied   = base.filter(UserOpportunity.status == "applied").count()
-    accepted  = base.filter(UserOpportunity.status == "accepted").count()
-    rejected  = base.filter(UserOpportunity.status == "rejected").count()
+    total    = base.count()
+    ready    = base.filter(UserOpportunity.status == "analyzed").count()
+    applied  = base.filter(UserOpportunity.status == "applied").count()
+    accepted = base.filter(UserOpportunity.status == "accepted").count()
+    rejected = base.filter(UserOpportunity.status == "rejected").count()
     return {
         "total": total,
         "ready": ready,
