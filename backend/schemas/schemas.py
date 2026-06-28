@@ -120,3 +120,13 @@ class SearchResponse(BaseModel):
 
 
 # ─── Admin ──────────────────────────────────────────────────�
+class UpdateUserPlan(BaseModel):
+    plan: PlanType
+
+
+class AdminUserOut(UserOut):
+    daily_searches: int
+    last_search_reset: Optional[datetime]
+
+    class Config:
+        from_attributes = True
