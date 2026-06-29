@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""           # your Gmail address
     SMTP_PASSWORD: str = ""       # Gmail App Password (not your main password)
 
+    # Lemon Squeezy (Payments)
+    LSQ_API_KEY: str = ""
+    LSQ_STORE_ID: str = "420823"
+    LSQ_VARIANT_ID: str = "1851645"
+    LSQ_WEBHOOK_SECRET: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

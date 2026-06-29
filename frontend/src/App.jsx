@@ -1,18 +1,32 @@
 import { useState, useEffect } from "react"
-import Landing   from "./Landing"
-import Login     from "./Login"
-import Register  from "./Register"
-import Dashboard from "./Dashboard"
-import Admin     from "./Admin"
+import Landing      from "./Landing"
+import Login        from "./Login"
+import Register     from "./Register"
+import Dashboard    from "./Dashboard"
+import Admin        from "./Admin"
+import VerifyEmail  from "./VerifyEmail"
+import ResetPassword from "./ResetPassword"
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
+// Detect page from URL path/params on initial load
+const detectInitialPage = () => {
+  const path = window.location.pathname
+  if (path === "/verify-email" || path.startsWith("/verify-email")) return "verify-email"
+  if (path === "/reset-password" || path.startsWith("/reset-password")) return "reset-password"
+  return null
+}
+
 export default function App() {
-  const [page,    setPage]    = useState("landing")
+  const [page,    setPage]    = useState(() => detectInitialPage() || "landing")
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // If we're on a special URL page, skip token validation
+    const urlPage = detectInitialPage()
+    if (urlPage) { setLoading(false); return }
+
     const token = localStorage.getItem("ob_token")
     if (token) {
       validateToken(token)
@@ -33,7 +47,6 @@ export default function App() {
         clearAuth()
       }
     } catch {
-      // Network error — keep landing, user can log in manually
       const plan = localStorage.getItem("ob_plan")
       if (plan) {
         setUser(buildUser())
@@ -56,6 +69,10 @@ export default function App() {
   const navigate = (newPage) => {
     setPage(newPage)
     window.scrollTo(0, 0)
+    // Clean URL when navigating away from special pages
+    if (newPage !== "verify-email" && newPage !== "reset-password") {
+      window.history.replaceState({}, "", "/")
+    }
   }
 
   const logout = () => {
@@ -78,6 +95,8 @@ export default function App() {
     </div>
   )
 
+  if (page === "verify-email")  return <VerifyEmail   navigate={navigate} />
+  if (page === "reset-password") return <ResetPassword navigate={navigate} />
   if (page === "landing")   return <Landing   navigate={navigate} />
   if (page === "login")     return <Login     navigate={navigate} onLogin={handleAuth} />
   if (page === "register")  return <Register  navigate={navigate} onRegister={handleAuth} />

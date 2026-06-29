@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from database import engine, Base
 from config import get_settings
-from routers import auth, user, opportunities, saved, admin
+from routers import auth, user, opportunities, saved, admin, payment
 from routers.user import profile_router, pipeline_router, gifts_router
 
 settings = get_settings()
@@ -44,3 +44,14 @@ app.include_router(gifts_router)
 app.include_router(opportunities.router)
 app.include_router(saved.router)
 app.include_router(admin.router)
+app.include_router(payment.router)
+
+
+@app.get("/")
+def root():
+    return {"status": "online", "app": "OpportuBot API", "version": "1.0.0"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}

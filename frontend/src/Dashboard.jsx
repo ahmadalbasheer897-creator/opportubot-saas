@@ -99,6 +99,8 @@ export default function Dashboard({ navigate, logout, user }) {
   const [cvFile,         setCvFile]         = useState(null)
   const [cvMsg,          setCvMsg]          = useState("")
   const [uploading,      setUploading]      = useState(false)
+  const [upgradeLoading, setUpgradeLoading] = useState(false)
+  const [upgradeMsg,     setUpgradeMsg]     = useState("")
   const [filterType,     setFilterType]     = useState("all")
   const [filterStatus,   setFilterStatus]   = useState("all")
   const [minScore,       setMinScore]       = useState(0)
@@ -176,6 +178,24 @@ export default function Dashboard({ navigate, logout, user }) {
       }
     } catch { setCvMsg("Upload failed. Please try again.") }
     setUploading(false)
+  }
+
+  const upgradeToPro = async () => {
+    setUpgradeLoading(true)
+    setUpgradeMsg("")
+    try {
+      const res  = await fetch(API + "/payment/checkout", { method: "POST", headers })
+      const data = await res.json()
+      if (res.ok && data.checkout_url) {
+        window.location.href = data.checkout_url
+      } else {
+        setUpgradeMsg(data.detail || "Could not start checkout. Try again.")
+        setUpgradeLoading(false)
+      }
+    } catch {
+      setUpgradeMsg("Connection error. Please try again.")
+      setUpgradeLoading(false)
+    }
   }
 
   const redeemGift = async () => {
@@ -324,6 +344,30 @@ export default function Dashboard({ navigate, logout, user }) {
               </div>
             )}
           </div>
+
+          {/* Upgrade to Pro — only on free plan */}
+          {plan === "free" && (
+            <div style={{ ...S.actionCard, background: "linear-gradient(135deg,#1A237E,#1565C0)", color: "white" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>⚡ Upgrade to Pro</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 14 }}>
+                Unlimited searches · AI scoring · Email notifications
+              </div>
+              <button
+                style={{
+                  width: "100%", padding: "10px", background: "white",
+                  color: COLORS.dark, border: "none", borderRadius: 8,
+                  fontWeight: 700, cursor: upgradeLoading ? "default" : "pointer", fontSize: 13,
+                }}
+                onClick={upgradeToPro}
+                disabled={upgradeLoading}
+              >
+                {upgradeLoading ? "Redirecting..." : "Subscribe — IQD 9,990/mo"}
+              </button>
+              {upgradeMsg && (
+                <div style={{ fontSize: 12, marginTop: 8, color: "#ffcdd2" }}>{upgradeMsg}</div>
+              )}
+            </div>
+          )}
 
           {/* Gift Code — only on free plan */}
           {plan === "free" && (

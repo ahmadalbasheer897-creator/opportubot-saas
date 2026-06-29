@@ -140,6 +140,19 @@ export default function Login({ navigate, onLogin }) {
           </button>
         </form>
 
+        <div style={{ textAlign: "right", marginTop: -10, marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => navigate("reset-password")}
+            style={{
+              background: "none", border: "none", color: COLORS.blue,
+              cursor: "pointer", fontSize: 13, textDecoration: "underline", padding: 0,
+            }}
+          >
+            Forgot password?
+          </button>
+        </div>
+
         <div style={S.divider}>Don't have an account?</div>
         <button
           style={{
