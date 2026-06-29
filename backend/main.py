@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from database import engine, Base
 from config import get_settings
 from routers import auth, user, opportunities, saved, admin, payment
@@ -10,9 +11,32 @@ from routers.user import profile_router, pipeline_router, gifts_router
 settings = get_settings()
 
 
+def run_migrations():
+    """Add missing columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_text TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_summary TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_filename VARCHAR(255)",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+            except Exception as e:
+                print(f"Migration skipped: {e}")
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    run_migrations()
     yield
 
 
