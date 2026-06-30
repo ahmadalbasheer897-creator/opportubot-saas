@@ -1,7 +1,6 @@
 """
-Email service using aiosmtplib (async SMTP).
-Supports Gmail App Password or any SMTP provider.
-Falls back gracefully if SMTP not configured.
+Email service — uses Resend (HTTPS API) as primary, SMTP as fallback.
+Resend is preferred because Render free tier blocks outbound SMTP port 587.
 """
 import asyncio
 import logging
@@ -15,23 +14,42 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-async def _send_email(to: str, subject: str, html_body: str, text_body: str = "") -> bool:
-    """Low-level SMTP send. Returns True on success, False on failure."""
+async def _send_via_resend(to: str, subject: str, html_body: str) -> bool:
+    """Send email via Resend HTTP API."""
+    if not settings.RESEND_API_KEY:
+        return False
+    try:
+        import resend
+        resend.api_key = settings.RESEND_API_KEY
+        params = {
+            "from": f"OpportuBot <{settings.SMTP_USER or 'onboarding@resend.dev'}>",
+            "to": [to],
+            "subject": subject,
+            "html": html_body,
+        }
+        r = resend.Emails.send(params)
+        logger.info("Resend email sent to %s: %s (id=%s)", to, subject, r.get("id"))
+        return True
+    except Exception as e:
+        logger.error("Resend failed for %s: %s", to, e)
+        return False
+
+
+async def _send_via_smtp(to: str, subject: str, html_body: str, text_body: str = "") -> bool:
+    """Fallback: send via SMTP (may be blocked on Render free tier)."""
     if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
         logger.warning("SMTP not configured – skipping email to %s: %s", to, subject)
         return False
-
     try:
         import aiosmtplib
     except ImportError:
-        logger.error("aiosmtplib not installed. Run: pip install aiosmtplib")
+        logger.error("aiosmtplib not installed")
         return False
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"OpportuBot <{settings.SMTP_USER}>"
     msg["To"] = to
-
     if text_body:
         msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
@@ -46,11 +64,18 @@ async def _send_email(to: str, subject: str, html_body: str, text_body: str = ""
             use_tls=(settings.SMTP_PORT == 465),
             start_tls=(settings.SMTP_PORT == 587),
         )
-        logger.info("Email sent to %s: %s", to, subject)
+        logger.info("SMTP email sent to %s: %s", to, subject)
         return True
     except Exception as e:
-        logger.error("Failed to send email to %s: %s", to, e)
+        logger.error("SMTP failed for %s: %s", to, e)
         return False
+
+
+async def _send_email(to: str, subject: str, html_body: str, text_body: str = "") -> bool:
+    """Send email: try Resend first, fall back to SMTP."""
+    if settings.RESEND_API_KEY:
+        return await _send_via_resend(to, subject, html_body)
+    return await _send_via_smtp(to, subject, html_body, text_body)
 
 
 # ── Verification Email ────────────────────────────────────────────────────────

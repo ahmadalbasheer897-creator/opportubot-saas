@@ -25,11 +25,14 @@ class Settings(BaseSettings):
     OWNER_EMAIL: str = "ahmadalbasheer.897@gmail.com"
     FRONTEND_URL: str = "https://prismatic-kelpie-ece144.netlify.app"
 
-    # SMTP (Email)
+    # SMTP (Email) - fallback, Render free tier blocks port 587
     SMTP_HOST: str = ""           # e.g. smtp.gmail.com
     SMTP_PORT: int = 587          # 587 for TLS, 465 for SSL
     SMTP_USER: str = ""           # your Gmail address
     SMTP_PASSWORD: str = ""       # Gmail App Password (not your main password)
+
+    # Resend (preferred email API - uses HTTPS, not blocked by Render)
+    RESEND_API_KEY: str = ""      # from resend.com
 
     # Lemon Squeezy (Payments)
     LSQ_API_KEY: str = ""
