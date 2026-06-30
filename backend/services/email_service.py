@@ -22,7 +22,7 @@ async def _send_via_resend(to: str, subject: str, html_body: str) -> bool:
         import resend
         resend.api_key = settings.RESEND_API_KEY
         params = {
-            "from": f"OpportuBot <{settings.SMTP_USER or 'onboarding@resend.dev'}>",
+            "from": "OpportuBot <onboarding@resend.dev>",
             "to": [to],
             "subject": subject,
             "html": html_body,
