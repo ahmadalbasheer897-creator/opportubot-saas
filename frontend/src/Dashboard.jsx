@@ -105,6 +105,8 @@ export default function Dashboard({ navigate, logout, user }) {
   const [filterStatus,   setFilterStatus]   = useState("all")
   const [minScore,       setMinScore]       = useState(0)
   const [expanded,       setExpanded]       = useState(null)
+  const [clModal,        setClModal]        = useState(null)   // {oppId, oppTitle, text, lang, loading}
+
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization": "Bearer " + token, "Content-Type": "application/json" }
@@ -221,6 +223,24 @@ export default function Dashboard({ navigate, logout, user }) {
       method: "PATCH", headers,
     })
     loadOpps()
+  }
+
+  const openCoverLetter = async (opp, lang = "English") => {
+    setClModal({ oppId: opp.id, oppTitle: opp.title, text: "", lang, loading: true })
+    try {
+      const res  = await fetch(
+        `${API}/opportunities/${opp.id}/cover-letter?language=${lang}`,
+        { method: "POST", headers }
+      )
+      const data = await res.json()
+      if (res.ok) {
+        setClModal(prev => ({ ...prev, text: data.cover_letter, loading: false }))
+      } else {
+        setClModal(prev => ({ ...prev, text: "Error: " + (data.detail || "Failed"), loading: false }))
+      }
+    } catch {
+      setClModal(prev => ({ ...prev, text: "Connection error. Please try again.", loading: false }))
+    }
   }
 
   if (loading) return (
@@ -530,52 +550,145 @@ export default function Dashboard({ navigate, logout, user }) {
                 </div>
 
                 {/* Expanded details */}
-                {expanded === opp.id && (
+                        {expanded === opp.id && (
                   <div style={{
                     marginTop: 12, paddingTop: 12,
-                    borderTop: "1px solid #f0f0f0",
+                    borderTop: "1px solid #eee",
                   }}>
-                    {opp.content && (
-                      <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, margin: "0 0 10px" }}>
-                        {opp.content.length > 500
-                          ? opp.content.slice(0, 500) + "…"
-                          : opp.content}
+                    {opp.summary && (
+                      <p style={{
+                        fontSize: 13, color: "#555", lineHeight: 1.6, marginBottom: 10,
+                      }}>
+                        {opp.summary}
                       </p>
                     )}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      {opp.apply_url && (
+                    {opp.ai_analysis && (
+                      <div style={{
+                        background: "#F3F4F6", borderRadius: 8,
+                        padding: "10px 12px", fontSize: 12, color: "#444",
+                        marginBottom: 10, lineHeight: 1.6,
+                      }}>
+                        <strong>AI Analysis:</strong> {opp.ai_analysis}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {opp.url && (
                         <a
-                          href={opp.apply_url}
+                          href={opp.url}
                           target="_blank"
                           rel="noreferrer"
                           style={{
-                            ...S.btn(COLORS.green),
-                            textDecoration: "none", fontSize: 12, display: "inline-block",
+                            ...S.btn(COLORS.blue),
+                            textDecoration: "none", fontSize: 12,
                           }}
                           onClick={e => e.stopPropagation()}
                         >
-                          Apply Now →
+                          View Opportunity →
                         </a>
                       )}
-                      {opp.nationality_note && (
-                        <span style={{ fontSize: 12, color: "#888" }}>
-                          🌍 {opp.nationality_note}
-                        </span>
-                      )}
-                      {opp.date_found && (
-                        <span style={{ fontSize: 11, color: "#bbb" }}>
-                          Found: {opp.date_found}
-                        </span>
-                      )}
+                      <button
+                        style={{ ...S.btn(COLORS.purple), fontSize: 12 }}
+                        onClick={e => { e.stopPropagation(); openCoverLetter(opp, "English") }}
+                      >
+                        ✉️ Cover Letter (EN)
+                      </button>
+                      <button
+                        style={{ ...S.btn(COLORS.dark), fontSize: 12 }}
+                        onClick={e => { e.stopPropagation(); openCoverLetter(opp, "Arabic") }}
+                      >
+                        ✉️ خطاب تقديم (AR)
+                      </button>
                     </div>
                   </div>
                 )}
+
               </div>
             ))
           )}
         </div>
 
       </div>
+
+      {/* ── Cover Letter Modal ──────────────────────────────── */}
+      {clModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 999, padding: 16,
+          }}
+          onClick={() => setClModal(null)}
+        >
+          <div
+            style={{
+              background: "white", borderRadius: 14, padding: 28,
+              maxWidth: 680, width: "100%", maxHeight: "85vh",
+              overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>
+                  ✉️ Cover Letter
+                </div>
+                <div style={{ fontSize: 12, color: "#888" }}>
+                  {clModal.oppTitle} · {clModal.lang}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {!clModal.loading && clModal.text && !clModal.text.startsWith("Error") && (
+                  <button
+                    style={S.btn(COLORS.green, "white")}
+                    onClick={() => { navigator.clipboard.writeText(clModal.text) }}
+                  >
+                    📋 Copy
+                  </button>
+                )}
+                <button style={S.btn(COLORS.red)} onClick={() => setClModal(null)}>✕ Close</button>
+              </div>
+            </div>
+
+            {/* Content */}
+            {clModal.loading ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#888" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✍️</div>
+                <div>Claude AI is writing your cover letter...</div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>This takes 5–10 seconds</div>
+              </div>
+            ) : (
+              <pre style={{
+                whiteSpace: "pre-wrap", fontFamily: "inherit",
+                fontSize: 14, lineHeight: 1.8, color: "#333",
+                background: "#F8F9FA", borderRadius: 8, padding: 16,
+                margin: 0,
+              }}>
+                {clModal.text}
+              </pre>
+            )}
+
+            {/* Switch language */}
+            {!clModal.loading && (
+              <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                <button
+                  style={S.btn(clModal.lang === "English" ? COLORS.purple : "#eee", clModal.lang === "English" ? "white" : "#555")}
+                  onClick={() => openCoverLetter({ id: clModal.oppId, title: clModal.oppTitle }, "English")}
+                >
+                  English
+                </button>
+                <button
+                  style={S.btn(clModal.lang === "Arabic" ? COLORS.dark : "#eee", clModal.lang === "Arabic" ? "white" : "#555")}
+                  onClick={() => openCoverLetter({ id: clModal.oppId, title: clModal.oppTitle }, "Arabic")}
+                >
+                  عربي
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
