@@ -21,28 +21,23 @@ def get_stats(
 ):
     now = datetime.now(timezone.utc)
 
-    # ------ Totals ------------------------------------------------------------------------------------------------------------------------------------------------
-    total_users        = db.query(User).count()
-    active_users       = db.query(User).filter(User.is_active == True).count()
-    total_searches     = db.query(SearchHistory).count()
+    total_users         = db.query(User).count()
+    active_users        = db.query(User).filter(User.is_active == True).count()
+    total_searches      = db.query(SearchHistory).count()
     total_opportunities = db.query(UserOpportunity).count()
 
-    # ------ Plan distribution ---------------------------------------------------------------------------------------------------------------
     plan_dist_raw = (
         db.query(User.plan, func.count(User.id))
         .group_by(User.plan)
         .all()
     )
-    plan_dist = {str(p): c for p, c in plan_dist_raw}
+    plan_dist   = {str(p): c for p, c in plan_dist_raw}
     free_users  = plan_dist.get("free",  0)
     pro_users   = plan_dist.get("pro",   0)
     gift_users  = plan_dist.get("gift",  0)
     owner_users = plan_dist.get("owner", 0)
-
-    # ------ Revenue estimate (Pro subscribers -- price) ------------------------------------
     revenue_iqd = pro_users * PRO_PRICE_IQD
 
-    # ------ Users registered per day --- last 14 days ---------------------------------------------
     users_by_day = []
     for i in range(13, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -52,7 +47,6 @@ def get_stats(
         ).count()
         users_by_day.append({"date": day_start.strftime("%m/%d"), "count": count})
 
-    # ------ Searches per day --- last 7 days ---------------------------------------------------------------------
     searches_by_day = []
     for i in range(6, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -62,4 +56,61 @@ def get_stats(
         ).count()
         searches_by_day.append({"date": day_start.strftime("%m/%d"), "count": count})
 
-    # ------ Opportunities by type --------------------------------------------------------------------------
+    opp_type_raw = (
+        db.query(UserOpportunity.type, func.count(UserOpportunity.id))
+        .group_by(UserOpportunity.type)
+        .all()
+    )
+    opp_by_type = [{"type": t or "unknown", "count": c} for t, c in opp_type_raw]
+
+    return {
+        "total_users":         total_users,
+        "active_users":        active_users,
+        "total_searches":      total_searches,
+        "total_opportunities": total_opportunities,
+        "free_users":          free_users,
+        "pro_users":           pro_users,
+        "gift_users":          gift_users,
+        "owner_users":         owner_users,
+        "revenue_iqd":         revenue_iqd,
+        "users_by_day":        users_by_day,
+        "searches_by_day":     searches_by_day,
+        "opp_by_type":         opp_by_type,
+    }
+
+
+@router.get("/users", response_model=List[AdminUserOut])
+def list_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_owner_user),
+):
+    return db.query(User).order_by(User.id.desc()).all()
+
+
+@router.patch("/users/{user_id}/plan")
+def update_user_plan(
+    user_id: int,
+    body: UpdateUserPlan,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_owner_user),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.plan = body.plan
+    db.commit()
+    return {"ok": True, "plan": body.plan}
+
+
+@router.patch("/users/{user_id}/toggle")
+def toggle_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_owner_user),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = not user.is_active
+    db.commit()
+    return {"ok": True, "is_active": user.is_active}
