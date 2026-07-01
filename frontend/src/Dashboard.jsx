@@ -109,6 +109,7 @@ export default function Dashboard({ navigate, logout, user }) {
   const [minScore,       setMinScore]       = useState(0)
   const [expanded,       setExpanded]       = useState(null)
   const [clModal,        setClModal]        = useState(null)   // {oppId, oppTitle, text, lang, loading}
+  const [ipModal,        setIpModal]        = useState(null)   // {oppId, oppTitle, questions, lang, loading}
 
 
   const token   = localStorage.getItem("ob_token")
@@ -243,6 +244,24 @@ export default function Dashboard({ navigate, logout, user }) {
       }
     } catch {
       setClModal(prev => ({ ...prev, text: "Connection error. Please try again.", loading: false }))
+    }
+  }
+
+  const openInterviewPrep = async (opp, lang = "English") => {
+    setIpModal({ oppId: opp.id, oppTitle: opp.title, questions: null, lang, loading: true })
+    try {
+      const res  = await fetch(
+        `${API}/opportunities/${opp.id}/interview-prep?language=${lang}`,
+        { method: "POST", headers }
+      )
+      const data = await res.json()
+      if (res.ok) {
+        setIpModal(prev => ({ ...prev, questions: data.questions, loading: false }))
+      } else {
+        setIpModal(prev => ({ ...prev, questions: null, loading: false, error: data.detail || "Failed" }))
+      }
+    } catch {
+      setIpModal(prev => ({ ...prev, questions: null, loading: false, error: "Connection error" }))
     }
   }
 
@@ -675,6 +694,12 @@ export default function Dashboard({ navigate, logout, user }) {
                       >
                         ✉️ خطاب تقديم (AR)
                       </button>
+                      <button
+                        style={{ ...S.btn("#00838F"), fontSize: 12 }}
+                        onClick={e => { e.stopPropagation(); openInterviewPrep(opp, "English") }}
+                      >
+                        🎤 Interview Prep
+                      </button>
                     </div>
                   </div>
                 )}
@@ -757,6 +782,115 @@ export default function Dashboard({ navigate, logout, user }) {
                 <button
                   style={S.btn(clModal.lang === "Arabic" ? COLORS.dark : "#eee", clModal.lang === "Arabic" ? "white" : "#555")}
                   onClick={() => openCoverLetter({ id: clModal.oppId, title: clModal.oppTitle }, "Arabic")}
+                >
+                  عربي
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Interview Prep Modal ─────────────────────────────── */}
+      {ipModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 999, padding: 16,
+          }}
+          onClick={() => setIpModal(null)}
+        >
+          <div
+            style={{
+              background: "white", borderRadius: 14, padding: 28,
+              maxWidth: 720, width: "100%", maxHeight: "88vh",
+              overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#00838F", marginBottom: 4 }}>
+                  🎤 Interview Prep
+                </div>
+                <div style={{ fontSize: 12, color: "#888" }}>
+                  {ipModal.oppTitle} · {ipModal.lang}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={S.btn("#C62828")} onClick={() => setIpModal(null)}>✕ Close</button>
+              </div>
+            </div>
+
+            {/* Content */}
+            {ipModal.loading ? (
+              <div style={{ textAlign: "center", padding: "48px 0", color: "#888" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🎤</div>
+                <div>Claude AI is generating interview questions...</div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>This takes 10–15 seconds</div>
+              </div>
+            ) : ipModal.error ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: COLORS.red }}>
+                {ipModal.error}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {(ipModal.questions || []).map((q, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      border: "1px solid #e0f2f1", borderRadius: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Question */}
+                    <div style={{
+                      background: "#e0f2f1", padding: "12px 16px",
+                      display: "flex", gap: 12, alignItems: "flex-start",
+                    }}>
+                      <span style={{
+                        background: "#00838F", color: "white",
+                        borderRadius: "50%", width: 24, height: 24,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>{i + 1}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#00695C", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
+                          {q.category}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#004D40", lineHeight: 1.5 }}>
+                          {q.question}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Answer tip */}
+                    <div style={{ padding: "12px 16px", background: "#F8F9FA" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6 }}>
+                        💡 ANSWER TIP
+                      </div>
+                      <div style={{ fontSize: 13, color: "#555", lineHeight: 1.7 }}>
+                        {q.answer_tip}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Language toggle */}
+            {!ipModal.loading && (
+              <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+                <button
+                  style={S.btn(ipModal.lang === "English" ? "#00838F" : "#eee", ipModal.lang === "English" ? "white" : "#555")}
+                  onClick={() => openInterviewPrep({ id: ipModal.oppId, title: ipModal.oppTitle }, "English")}
+                >
+                  English
+                </button>
+                <button
+                  style={S.btn(ipModal.lang === "Arabic" ? COLORS.dark : "#eee", ipModal.lang === "Arabic" ? "white" : "#555")}
+                  onClick={() => openInterviewPrep({ id: ipModal.oppId, title: ipModal.oppTitle }, "Arabic")}
                 >
                   عربي
                 </button>

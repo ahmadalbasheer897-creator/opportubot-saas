@@ -142,6 +142,74 @@ async def enhance_opportunity_description(title: str, raw_description: str) -> s
         return raw_description
 
 
+async def generate_interview_questions(
+    opportunity_title: str,
+    opportunity_description: str,
+    opportunity_url: str,
+    user_name: str,
+    cv_text: Optional[str] = None,
+    user_skills: Optional[str] = None,
+    language: str = "English",
+) -> Optional[List[Dict]]:
+    """
+    Generate 6 tailored interview questions with answer tips for a specific opportunity.
+    Returns list of {question, answer_tip, category} or None on failure.
+    """
+    if not settings.ANTHROPIC_API_KEY:
+        return None
+
+    profile_section = ""
+    if cv_text:
+        profile_section = f"\n\nCandidate CV (excerpt):\n{cv_text[:1500]}"
+    elif user_skills:
+        profile_section = f"\n\nCandidate Skills: {user_skills}"
+
+    lang_instruction = (
+        "Write all questions and answers in English."
+        if language == "English"
+        else "اكتب جميع الأسئلة والإجابات باللغة العربية."
+    )
+
+    prompt = f"""You are an expert interview coach preparing a candidate for a specific opportunity.
+
+Opportunity: {opportunity_title}
+Description: {(opportunity_description or '')[:500]}
+Candidate: {user_name}{profile_section}
+
+Generate exactly 6 interview questions tailored to this specific role/opportunity.
+Include a mix of:
+- 2 behavioral questions (STAR format)
+- 2 technical/knowledge questions relevant to the role
+- 1 motivation/fit question
+- 1 situational challenge question
+
+{lang_instruction}
+
+Return ONLY a JSON array, no other text:
+[
+  {{
+    "category": "Behavioral",
+    "question": "...",
+    "answer_tip": "Brief 2-3 sentence tip on how to answer this specific question well"
+  }},
+  ...
+]"""
+
+    try:
+        msg = _client().messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        match = re.search(r'\[.*\]', raw, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON array found")
+        return json.loads(match.group())
+    except Exception:
+        return None
+
+
 async def generate_cover_letter(
     opportunity_title: str,
     opportunity_description: str,

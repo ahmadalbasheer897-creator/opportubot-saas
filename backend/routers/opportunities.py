@@ -8,7 +8,7 @@ from models.models import User, UserOpportunity, SearchHistory, PlanType, Opport
 from schemas.schemas import SearchRequest, SearchResponse, OpportunityCreate
 from auth import get_current_user
 from services.search_service import search_opportunities
-from services.ai_service import generate_search_summary, generate_cover_letter
+from services.ai_service import generate_search_summary, generate_cover_letter, generate_interview_questions
 import json
 
 router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
@@ -177,6 +177,41 @@ async def cover_letter(
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
     return {"cover_letter": text, "opportunity_title": opp.title, "language": language}
+
+
+@router.post("/{opp_id}/interview-prep")
+async def interview_prep(
+    opp_id: int,
+    language: str = Query("English", regex="^(English|Arabic)$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate AI interview questions tailored to a specific opportunity."""
+    opp = db.query(UserOpportunity).filter(
+        UserOpportunity.id == opp_id,
+        UserOpportunity.user_id == current_user.id,
+    ).first()
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    questions = await generate_interview_questions(
+        opportunity_title=opp.title or "",
+        opportunity_description=opp.description or "",
+        opportunity_url=opp.url or "",
+        user_name=current_user.name,
+        cv_text=current_user.cv_text,
+        user_skills=current_user.skills,
+        language=language,
+    )
+    if not questions:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+
+    return {
+        "questions": questions,
+        "opportunity_title": opp.title,
+        "language": language,
+        "total": len(questions),
+    }
 
 
 @router.get("/history")
