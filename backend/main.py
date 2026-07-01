@@ -95,16 +95,3 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-
-
-@app.get("/debug/email-test")
-async def debug_email_test():
-    """Temporary endpoint to test SMTP configuration."""
-    from config import get_settings
-    s = get_settings()
-    config_ok = bool(s.SMTP_HOST and s.SMTP_USER and s.SMTP_PASSWORD)
-    if not config_ok:
-        return {"error": "SMTP not configured", "host": s.SMTP_HOST, "user": s.SMTP_USER}
-    from services.email_service import send_password_reset_email
-    result = await send_password_reset_email(s.OWNER_EMAIL, "Ahmad", "debug-test-token-000")
-    return {"sent": result, "to": s.OWNER_EMAIL, "smtp_host": s.SMTP_HOST}
