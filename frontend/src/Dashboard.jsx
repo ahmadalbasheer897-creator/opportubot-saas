@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { makeTr } from "./translations"
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
@@ -110,6 +111,7 @@ export default function Dashboard({ navigate, logout, user }) {
   const [expanded,       setExpanded]       = useState(null)
   const [clModal,        setClModal]        = useState(null)   // {oppId, oppTitle, text, lang, loading}
   const [ipModal,        setIpModal]        = useState(null)   // {oppId, oppTitle, questions, lang, loading}
+  const [lang,           setLang]           = useState(() => localStorage.getItem("ob_lang") || "en")
 
 
   const token   = localStorage.getItem("ob_token")
@@ -150,14 +152,15 @@ export default function Dashboard({ navigate, logout, user }) {
       const res  = await fetch(API + "/pipeline/run", { method: "POST", headers })
       const data = await res.json()
       if (res.ok) {
-        setPipelineMsg("Pipeline started! New opportunities will appear in a moment.")
+        const msg = makeTr(localStorage.getItem("ob_lang") || "en")("pipelineStarted")
+        setPipelineMsg(msg)
         setTimeout(() => { loadAll(); setPipelineMsg("") }, 5000)
       } else {
         setPipelineMsg(data.detail || "Failed to start pipeline")
         setPipelineRunning(false)
       }
     } catch {
-      setPipelineMsg("Connection error. Please try again.")
+      setPipelineMsg(makeTr(localStorage.getItem("ob_lang") || "en")("connectionError"))
       setPipelineRunning(false)
     }
   }
@@ -278,6 +281,15 @@ export default function Dashboard({ navigate, logout, user }) {
   const displayName = user?.full_name || user?.email || "User"
   const plan = user?.plan || "free"
 
+  // ── i18n ──────────────────────────────────────────────
+  const t    = makeTr(lang)
+  const isAr = lang === "ar"
+  const toggleLang = () => {
+    const next = lang === "en" ? "ar" : "en"
+    setLang(next)
+    localStorage.setItem("ob_lang", next)
+  }
+
   // ── Client-side derived filters ────────────────────────
   const uniqueCountries = [...new Set(
     opps.map(o => o.country).filter(c => c && c !== "Not found" && c.trim())
@@ -310,22 +322,33 @@ export default function Dashboard({ navigate, logout, user }) {
   })
 
   return (
-    <div style={S.page}>
+    <div style={{ ...S.page, direction: isAr ? "rtl" : "ltr" }}>
 
       {/* ── Header ───────────────────────────────────────────── */}
       <div style={S.header}>
-        <div style={S.logo}>🤖 OpportuBot</div>
+        <div style={S.logo}>🤖 {t("appName")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontSize: 13, opacity: 0.85, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {displayName}
           </span>
           <span style={S.planBadge(plan)}>{plan.toUpperCase()}</span>
+          {/* Language toggle */}
+          <button
+            style={{
+              ...S.btn("rgba(255,255,255,0.15)", "white"),
+              border: "1px solid rgba(255,255,255,0.3)", fontSize: 12,
+            }}
+            onClick={toggleLang}
+            title={isAr ? "Switch to English" : "التبديل إلى العربية"}
+          >
+            {isAr ? "EN" : "عربي"}
+          </button>
           {user?.is_owner && (
             <button style={S.btn("#283593")} onClick={() => navigate("admin")}>
-              Admin Panel
+              {t("adminPanel")}
             </button>
           )}
-          <button style={S.btn(COLORS.red)} onClick={logout}>Logout</button>
+          <button style={S.btn(COLORS.red)} onClick={logout}>{t("logout")}</button>
         </div>
       </div>
 
@@ -334,12 +357,12 @@ export default function Dashboard({ navigate, logout, user }) {
         {/* ── Stats ─────────────────────────────────────────── */}
         <div style={S.statsRow}>
           {[
-            { label: "Total",    val: stats?.total         ?? 0, color: COLORS.dark   },
-            { label: "Ready",    val: stats?.ready         ?? 0, color: COLORS.blue   },
-            { label: "Applied",  val: stats?.applied       ?? 0, color: COLORS.orange },
-            { label: "Accepted", val: stats?.accepted      ?? 0, color: COLORS.green  },
-            { label: "Rejected", val: stats?.rejected      ?? 0, color: COLORS.red    },
-            { label: "Due Soon", val: stats?.deadline_soon ?? 0, color: COLORS.amber  },
+            { label: t("total"),    val: stats?.total         ?? 0, color: COLORS.dark   },
+            { label: t("ready"),    val: stats?.ready         ?? 0, color: COLORS.blue   },
+            { label: t("applied"),  val: stats?.applied       ?? 0, color: COLORS.orange },
+            { label: t("accepted"), val: stats?.accepted      ?? 0, color: COLORS.green  },
+            { label: t("rejected"), val: stats?.rejected      ?? 0, color: COLORS.red    },
+            { label: t("dueSoon"), val: stats?.deadline_soon ?? 0, color: COLORS.amber  },
           ].map(s => (
             <div key={s.label} style={S.statCard(s.color)}>
               <div style={S.statNum}>{s.val}</div>
@@ -353,11 +376,9 @@ export default function Dashboard({ navigate, logout, user }) {
 
           {/* Run Pipeline */}
           <div style={S.actionCard}>
-            <div style={S.cardTitle}>🚀 Find New Opportunities</div>
+            <div style={S.cardTitle}>🚀 {t("findOpps")}</div>
             <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
-              {plan === "free"
-                ? "Free plan: up to 50 opportunities/month"
-                : "Unlimited opportunities — Pro plan active"}
+              {plan === "free" ? t("freePlanNote") : t("proPlanNote")}
             </div>
             <button
               style={{
@@ -367,13 +388,13 @@ export default function Dashboard({ navigate, logout, user }) {
               onClick={runPipeline}
               disabled={pipelineRunning}
             >
-              {pipelineRunning ? "⏳ Pipeline running..." : "Run Pipeline"}
+              {pipelineRunning ? t("pipelineRunning") : t("runPipeline")}
             </button>
             {pipelineMsg && (
               <div style={{
                 fontSize: 12, marginTop: 8, padding: "8px 10px", borderRadius: 6,
-                background: pipelineMsg.includes("started") ? "#E8F5E9" : "#FFEBEE",
-                color: pipelineMsg.includes("started") ? COLORS.green : COLORS.red,
+                background: pipelineMsg.includes("started") || pipelineMsg.includes("بدأ") ? "#E8F5E9" : "#FFEBEE",
+                color: pipelineMsg.includes("started") || pipelineMsg.includes("بدأ") ? COLORS.green : COLORS.red,
               }}>
                 {pipelineMsg}
               </div>
@@ -383,15 +404,15 @@ export default function Dashboard({ navigate, logout, user }) {
           {/* Upload CV */}
           <div style={S.actionCard}>
             <div style={S.cardTitle}>
-              📄 {profile ? "Update CV" : "Upload Your CV"}
+              📄 {profile ? t("updateCV") : t("uploadCV")}
               {profile && (
                 <span style={{ fontSize: 12, color: COLORS.green, fontWeight: 400, marginLeft: 8 }}>
-                  ✓ on file
+                  {t("cvOnFile")}
                 </span>
               )}
             </div>
             <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-              Upload a PDF — Claude AI extracts your profile for matching
+              {t("cvDesc")}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <input
@@ -405,13 +426,13 @@ export default function Dashboard({ navigate, logout, user }) {
                 onClick={uploadCV}
                 disabled={uploading || !cvFile}
               >
-                {uploading ? "Uploading..." : "Upload"}
+                {uploading ? t("uploading") : t("upload")}
               </button>
             </div>
             {cvMsg && (
               <div style={{
                 fontSize: 12, marginTop: 8,
-                color: cvMsg.includes("progress") ? COLORS.green : COLORS.red,
+                color: cvMsg.includes("progress") || cvMsg.includes("جارٍ") ? COLORS.green : COLORS.red,
               }}>
                 {cvMsg}
               </div>
@@ -421,10 +442,8 @@ export default function Dashboard({ navigate, logout, user }) {
           {/* Upgrade to Pro — only on free plan */}
           {plan === "free" && (
             <div style={{ ...S.actionCard, background: "linear-gradient(135deg,#1A237E,#1565C0)", color: "white" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>⚡ Upgrade to Pro</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 14 }}>
-                Unlimited searches · AI scoring · Email notifications
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>⚡ {t("upgradePro")}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 14 }}>{t("upgradeDesc")}</div>
               <button
                 style={{
                   width: "100%", padding: "10px", background: "white",
@@ -434,7 +453,7 @@ export default function Dashboard({ navigate, logout, user }) {
                 onClick={upgradeToPro}
                 disabled={upgradeLoading}
               >
-                {upgradeLoading ? "Redirecting..." : "Subscribe — IQD 9,990/mo"}
+                {upgradeLoading ? t("redirecting") : t("upgradeBtn")}
               </button>
               {upgradeMsg && (
                 <div style={{ fontSize: 12, marginTop: 8, color: "#ffcdd2" }}>{upgradeMsg}</div>
@@ -445,10 +464,8 @@ export default function Dashboard({ navigate, logout, user }) {
           {/* Gift Code — only on free plan */}
           {plan === "free" && (
             <div style={S.actionCard}>
-              <div style={S.cardTitle}>🎁 Redeem Gift Code</div>
-              <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-                Enter a gift code to unlock Pro features instantly
-              </div>
+              <div style={S.cardTitle}>🎁 {t("redeemGift")}</div>
+              <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>{t("redeemDesc")}</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   style={{ ...S.input, flex: 1 }}
@@ -456,14 +473,12 @@ export default function Dashboard({ navigate, logout, user }) {
                   value={giftCode}
                   onChange={e => { setGiftCode(e.target.value.toUpperCase()); setGiftMsg("") }}
                 />
-                <button style={S.btn(COLORS.purple)} onClick={redeemGift}>
-                  Redeem
-                </button>
+                <button style={S.btn(COLORS.purple)} onClick={redeemGift}>{t("redeemBtn")}</button>
               </div>
               {giftMsg && (
                 <div style={{
                   fontSize: 12, marginTop: 8,
-                  color: giftMsg.includes("activated") ? COLORS.green : COLORS.red,
+                  color: giftMsg.includes("activated") || giftMsg.includes("فُعِّلت") ? COLORS.green : COLORS.red,
                 }}>
                   {giftMsg}
                 </div>
@@ -480,23 +495,23 @@ export default function Dashboard({ navigate, logout, user }) {
             alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12,
           }}>
             <div style={{ ...S.cardTitle, marginBottom: 0 }}>
-              Opportunities ({filteredOpps.length}{filteredOpps.length !== opps.length ? ` / ${opps.length}` : ""})
+              {t("opportunities")} ({filteredOpps.length}{filteredOpps.length !== opps.length ? ` / ${opps.length}` : ""})
             </div>
             {/* Filters */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {/* Text search */}
               <input
                 style={{ ...S.input, width: 160 }}
-                placeholder="🔍 Search..."
+                placeholder={t("searchPlaceholder")}
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
               />
 
               {/* Type */}
               <select style={S.select} value={filterType} onChange={e => setFilterType(e.target.value)}>
-                {OPP_TYPES.map(t => (
-                  <option key={t} value={t}>
-                    {t === "all" ? "All Types" : t.charAt(0).toUpperCase() + t.slice(1) + "s"}
+                {OPP_TYPES.map(tp => (
+                  <option key={tp} value={tp}>
+                    {tp === "all" ? t("allTypes") : t(tp + "s") || (tp.charAt(0).toUpperCase() + tp.slice(1) + "s")}
                   </option>
                 ))}
               </select>
@@ -505,7 +520,7 @@ export default function Dashboard({ navigate, logout, user }) {
               <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 {STATUSES.map(s => (
                   <option key={s} value={s}>
-                    {s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}
+                    {s === "all" ? t("allStatus") : s.charAt(0).toUpperCase() + s.slice(1)}
                   </option>
                 ))}
               </select>
@@ -513,7 +528,7 @@ export default function Dashboard({ navigate, logout, user }) {
               {/* Country */}
               {uniqueCountries.length > 0 && (
                 <select style={S.select} value={filterCountry} onChange={e => setFilterCountry(e.target.value)}>
-                  <option value="all">🌍 All Countries</option>
+                  <option value="all">{t("allCountries")}</option>
                   {uniqueCountries.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -522,16 +537,16 @@ export default function Dashboard({ navigate, logout, user }) {
 
               {/* Deadline */}
               <select style={S.select} value={filterDeadline} onChange={e => setFilterDeadline(e.target.value)}>
-                <option value="all">📅 Any Deadline</option>
-                <option value="week">Due This Week</option>
-                <option value="month">Due This Month</option>
-                <option value="overdue">Overdue</option>
+                <option value="all">{t("anyDeadline")}</option>
+                <option value="week">{t("dueThisWeek")}</option>
+                <option value="month">{t("dueThisMonth")}</option>
+                <option value="overdue">{t("overdue")}</option>
               </select>
 
               {/* Min score slider */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 12, color: "#666", whiteSpace: "nowrap" }}>
-                  Min score:
+                  {t("minScore")}
                 </span>
                 <input
                   type="range" min={0} max={100} step={10}
@@ -557,7 +572,7 @@ export default function Dashboard({ navigate, logout, user }) {
                     setFilterDeadline("all"); setSearchText(""); setMinScore(0)
                   }}
                 >
-                  ✕ Reset
+                  {t("resetFilters")}
                 </button>
               )}
             </div>
@@ -567,12 +582,10 @@ export default function Dashboard({ navigate, logout, user }) {
             <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>🔍</div>
               <div style={{ fontSize: 15, marginBottom: 6, color: "#999" }}>
-                {opps.length === 0 ? "No opportunities yet" : "No results match your filters"}
+                {opps.length === 0 ? t("noOppsYet") : t("noResults")}
               </div>
               <div style={{ fontSize: 13 }}>
-                {opps.length === 0
-                  ? "Click \"Run Pipeline\" above to find your first opportunities"
-                  : "Try adjusting or resetting your filters"}
+                {opps.length === 0 ? t("noOppsHint") : t("noResultsHint")}
               </div>
             </div>
           ) : (
@@ -679,26 +692,26 @@ export default function Dashboard({ navigate, logout, user }) {
                           }}
                           onClick={e => e.stopPropagation()}
                         >
-                          View Opportunity →
+                          {t("viewOpp")}
                         </a>
                       )}
                       <button
                         style={{ ...S.btn(COLORS.purple), fontSize: 12 }}
                         onClick={e => { e.stopPropagation(); openCoverLetter(opp, "English") }}
                       >
-                        ✉️ Cover Letter (EN)
+                        {t("coverLetterEN")}
                       </button>
                       <button
                         style={{ ...S.btn(COLORS.dark), fontSize: 12 }}
                         onClick={e => { e.stopPropagation(); openCoverLetter(opp, "Arabic") }}
                       >
-                        ✉️ خطاب تقديم (AR)
+                        {t("coverLetterAR")}
                       </button>
                       <button
                         style={{ ...S.btn("#00838F"), fontSize: 12 }}
-                        onClick={e => { e.stopPropagation(); openInterviewPrep(opp, "English") }}
+                        onClick={e => { e.stopPropagation(); openInterviewPrep(opp, isAr ? "Arabic" : "English") }}
                       >
-                        🎤 Interview Prep
+                        {t("interviewPrep")}
                       </button>
                     </div>
                   </div>
@@ -733,7 +746,7 @@ export default function Dashboard({ navigate, logout, user }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>
-                  ✉️ Cover Letter
+                  {t("clTitle")}
                 </div>
                 <div style={{ fontSize: 12, color: "#888" }}>
                   {clModal.oppTitle} · {clModal.lang}
@@ -745,10 +758,10 @@ export default function Dashboard({ navigate, logout, user }) {
                     style={S.btn(COLORS.green, "white")}
                     onClick={() => { navigator.clipboard.writeText(clModal.text) }}
                   >
-                    📋 Copy
+                    {t("copy")}
                   </button>
                 )}
-                <button style={S.btn(COLORS.red)} onClick={() => setClModal(null)}>✕ Close</button>
+                <button style={S.btn(COLORS.red)} onClick={() => setClModal(null)}>{t("close")}</button>
               </div>
             </div>
 
@@ -756,8 +769,8 @@ export default function Dashboard({ navigate, logout, user }) {
             {clModal.loading ? (
               <div style={{ textAlign: "center", padding: "40px 0", color: "#888" }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>✍️</div>
-                <div>Claude AI is writing your cover letter...</div>
-                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>This takes 5–10 seconds</div>
+                <div>{t("clLoading")}</div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>{t("clLoadingHint")}</div>
               </div>
             ) : (
               <pre style={{
@@ -777,13 +790,13 @@ export default function Dashboard({ navigate, logout, user }) {
                   style={S.btn(clModal.lang === "English" ? COLORS.purple : "#eee", clModal.lang === "English" ? "white" : "#555")}
                   onClick={() => openCoverLetter({ id: clModal.oppId, title: clModal.oppTitle }, "English")}
                 >
-                  English
+                  {t("english")}
                 </button>
                 <button
                   style={S.btn(clModal.lang === "Arabic" ? COLORS.dark : "#eee", clModal.lang === "Arabic" ? "white" : "#555")}
                   onClick={() => openCoverLetter({ id: clModal.oppId, title: clModal.oppTitle }, "Arabic")}
                 >
-                  عربي
+                  {t("arabic")}
                 </button>
               </div>
             )}
@@ -813,14 +826,14 @@ export default function Dashboard({ navigate, logout, user }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#00838F", marginBottom: 4 }}>
-                  🎤 Interview Prep
+                  {t("ipTitle")}
                 </div>
                 <div style={{ fontSize: 12, color: "#888" }}>
                   {ipModal.oppTitle} · {ipModal.lang}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button style={S.btn("#C62828")} onClick={() => setIpModal(null)}>✕ Close</button>
+                <button style={S.btn("#C62828")} onClick={() => setIpModal(null)}>{t("close")}</button>
               </div>
             </div>
 
@@ -828,8 +841,8 @@ export default function Dashboard({ navigate, logout, user }) {
             {ipModal.loading ? (
               <div style={{ textAlign: "center", padding: "48px 0", color: "#888" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🎤</div>
-                <div>Claude AI is generating interview questions...</div>
-                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>This takes 10–15 seconds</div>
+                <div>{t("ipLoading")}</div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "#bbb" }}>{t("ipLoadingHint")}</div>
               </div>
             ) : ipModal.error ? (
               <div style={{ textAlign: "center", padding: "32px 0", color: COLORS.red }}>
@@ -868,7 +881,7 @@ export default function Dashboard({ navigate, logout, user }) {
                     {/* Answer tip */}
                     <div style={{ padding: "12px 16px", background: "#F8F9FA" }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6 }}>
-                        💡 ANSWER TIP
+                        {t("answerTip")}
                       </div>
                       <div style={{ fontSize: 13, color: "#555", lineHeight: 1.7 }}>
                         {q.answer_tip}
@@ -886,13 +899,13 @@ export default function Dashboard({ navigate, logout, user }) {
                   style={S.btn(ipModal.lang === "English" ? "#00838F" : "#eee", ipModal.lang === "English" ? "white" : "#555")}
                   onClick={() => openInterviewPrep({ id: ipModal.oppId, title: ipModal.oppTitle }, "English")}
                 >
-                  English
+                  {t("english")}
                 </button>
                 <button
                   style={S.btn(ipModal.lang === "Arabic" ? COLORS.dark : "#eee", ipModal.lang === "Arabic" ? "white" : "#555")}
                   onClick={() => openInterviewPrep({ id: ipModal.oppId, title: ipModal.oppTitle }, "Arabic")}
                 >
-                  عربي
+                  {t("arabic")}
                 </button>
               </div>
             )}
