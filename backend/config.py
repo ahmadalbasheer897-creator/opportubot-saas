@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Resend (preferred email API - uses HTTPS, not blocked by Render)
     RESEND_API_KEY: str = ""      # from resend.com
 
+    # Daily Digest
+    DIGEST_SECRET: str = "opportubot-digest-2026"  # change in Render env vars
+
     # Lemon Squeezy (Payments)
     LSQ_API_KEY: str = ""
     LSQ_STORE_ID: str = "420823"

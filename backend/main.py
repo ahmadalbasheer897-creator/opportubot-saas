@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from database import engine, Base
 from config import get_settings
-from routers import auth, user, opportunities, saved, admin, payment
+from routers import auth, user, opportunities, saved, admin, payment, digest
 from routers.user import profile_router, pipeline_router, gifts_router
 
 logging.basicConfig(
@@ -85,6 +85,7 @@ app.include_router(opportunities.router)
 app.include_router(saved.router)
 app.include_router(admin.router)
 app.include_router(payment.router)
+app.include_router(digest.router)
 
 
 @app.get("/")

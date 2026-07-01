@@ -198,6 +198,104 @@ async def send_pipeline_results_email(
     return await _send_email(to_email, subject, html)
 
 
+# ── Daily Digest Email ───────────────────────────────────────────────────────
+
+async def send_daily_digest_email(
+    to_email: str,
+    name: str,
+    opportunities: List[dict],
+) -> bool:
+    """Send a daily digest with the user's top 5 opportunities."""
+    if not opportunities:
+        return False
+
+    rows = ""
+    for i, opp in enumerate(opportunities[:5], 1):
+        score = opp.get("score", 0)
+        score_color = "#22c55e" if score >= 70 else ("#f59e0b" if score >= 50 else "#ef4444")
+        opp_type = opp.get("type", "opportunity")
+        deadline = opp.get("deadline", "")
+        deadline_html = (
+            f'<br><span style="color:#f59e0b; font-size:11px;">⏰ {deadline}</span>'
+            if deadline and deadline != "Not found" else ""
+        )
+        country = opp.get("country", "")
+        country_html = (
+            f'<br><span style="color:#94a3b8; font-size:11px;">🌍 {country}</span>'
+            if country and country != "Not found" else ""
+        )
+        rows += f"""
+        <tr style="border-bottom:1px solid #334155;">
+          <td style="padding:14px 8px;">
+            <span style="background:#1e293b; color:#94a3b8; font-size:10px; padding:2px 7px;
+                         border-radius:10px; text-transform:uppercase;">{opp_type}</span>
+            <div style="color:#e2e8f0; font-weight:bold; margin-top:6px; font-size:14px;">
+              {opp.get('title','Untitled')[:65]}
+            </div>
+            {country_html}{deadline_html}
+          </td>
+          <td style="padding:14px 8px; text-align:center; white-space:nowrap;">
+            <span style="color:{score_color}; font-weight:bold; font-size:16px;">{score}%</span>
+          </td>
+          <td style="padding:14px 8px; text-align:center;">
+            <a href="{opp.get('url','#')}"
+               style="background:#7c3aed; color:#fff; padding:6px 14px; border-radius:6px;
+                      text-decoration:none; font-size:12px; font-weight:bold;">View →</a>
+          </td>
+        </tr>"""
+
+    from datetime import date
+    today = date.today().strftime("%B %d, %Y")
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; background:#0f172a; color:#e2e8f0; padding:40px; margin:0;">
+  <div style="max-width:620px; margin:auto; background:#1e293b; border-radius:14px; overflow:hidden;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#4c1d95,#1e40af); padding:28px 32px;">
+      <div style="font-size:24px; font-weight:bold; color:white;">🤖 OpportuBot</div>
+      <div style="font-size:13px; color:#c4b5fd; margin-top:6px;">Daily Digest · {today}</div>
+    </div>
+    <!-- Body -->
+    <div style="padding:28px 32px;">
+      <p style="margin-top:0;">Hi <strong>{name}</strong> 👋</p>
+      <p style="color:#94a3b8; font-size:14px; margin-bottom:20px;">
+        Here are your top {len(opportunities[:5])} opportunities waiting for you today:
+      </p>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f172a; color:#64748b; font-size:11px; text-transform:uppercase;">
+            <th style="padding:10px 8px; text-align:left;">Opportunity</th>
+            <th style="padding:10px 8px; text-align:center; width:60px;">Match</th>
+            <th style="padding:10px 8px; text-align:center; width:80px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
+      <div style="margin-top:24px; text-align:center;">
+        <a href="{settings.FRONTEND_URL}"
+           style="display:inline-block; background:#7c3aed; color:#fff; padding:14px 32px;
+                  border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px;">
+          Open Dashboard →
+        </a>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:16px 32px; background:#0f172a; text-align:center;">
+      <p style="color:#475569; font-size:11px; margin:0;">
+        OpportuBot · AI-powered opportunity tracker ·
+        <a href="{settings.FRONTEND_URL}" style="color:#7c3aed;">Visit site</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+"""
+    return await _send_email(to_email, f"📬 Your Daily Digest — {today}", html)
+
+
 # ── Password Reset Email ──────────────────────────────────────────────────────
 
 async def send_password_reset_email(to_email: str, name: str, token: str) -> bool:

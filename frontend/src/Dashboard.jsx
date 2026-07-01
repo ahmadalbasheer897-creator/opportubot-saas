@@ -103,6 +103,9 @@ export default function Dashboard({ navigate, logout, user }) {
   const [upgradeMsg,     setUpgradeMsg]     = useState("")
   const [filterType,     setFilterType]     = useState("all")
   const [filterStatus,   setFilterStatus]   = useState("all")
+  const [filterCountry,  setFilterCountry]  = useState("all")
+  const [filterDeadline, setFilterDeadline] = useState("all")
+  const [searchText,     setSearchText]     = useState("")
   const [minScore,       setMinScore]       = useState(0)
   const [expanded,       setExpanded]       = useState(null)
   const [clModal,        setClModal]        = useState(null)   // {oppId, oppTitle, text, lang, loading}
@@ -255,6 +258,37 @@ export default function Dashboard({ navigate, logout, user }) {
 
   const displayName = user?.full_name || user?.email || "User"
   const plan = user?.plan || "free"
+
+  // ── Client-side derived filters ────────────────────────
+  const uniqueCountries = [...new Set(
+    opps.map(o => o.country).filter(c => c && c !== "Not found" && c.trim())
+  )].sort()
+
+  const filteredOpps = opps.filter(opp => {
+    // Country
+    if (filterCountry !== "all" && opp.country !== filterCountry) return false
+    // Text search
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase()
+      if (
+        !(opp.title   || "").toLowerCase().includes(q) &&
+        !(opp.summary || "").toLowerCase().includes(q) &&
+        !(opp.country || "").toLowerCase().includes(q)
+      ) return false
+    }
+    // Deadline
+    if (filterDeadline !== "all") {
+      const dl = new Date(opp.deadline)
+      if (isNaN(dl)) return filterDeadline !== "overdue" // no deadline = not overdue
+      const now = new Date()
+      const weekEnd  = new Date(); weekEnd.setDate(now.getDate() + 7)
+      const monthEnd = new Date(); monthEnd.setDate(now.getDate() + 30)
+      if (filterDeadline === "overdue" && dl >= now)               return false
+      if (filterDeadline === "week"    && (dl < now || dl > weekEnd))  return false
+      if (filterDeadline === "month"   && (dl < now || dl > monthEnd)) return false
+    }
+    return true
+  })
 
   return (
     <div style={S.page}>
@@ -427,15 +461,20 @@ export default function Dashboard({ navigate, logout, user }) {
             alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12,
           }}>
             <div style={{ ...S.cardTitle, marginBottom: 0 }}>
-              Opportunities ({opps.length})
+              Opportunities ({filteredOpps.length}{filteredOpps.length !== opps.length ? ` / ${opps.length}` : ""})
             </div>
             {/* Filters */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <select
-                style={S.select}
-                value={filterType}
-                onChange={e => setFilterType(e.target.value)}
-              >
+              {/* Text search */}
+              <input
+                style={{ ...S.input, width: 160 }}
+                placeholder="🔍 Search..."
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+              />
+
+              {/* Type */}
+              <select style={S.select} value={filterType} onChange={e => setFilterType(e.target.value)}>
                 {OPP_TYPES.map(t => (
                   <option key={t} value={t}>
                     {t === "all" ? "All Types" : t.charAt(0).toUpperCase() + t.slice(1) + "s"}
@@ -443,11 +482,8 @@ export default function Dashboard({ navigate, logout, user }) {
                 ))}
               </select>
 
-              <select
-                style={S.select}
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-              >
+              {/* Status */}
+              <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 {STATUSES.map(s => (
                   <option key={s} value={s}>
                     {s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -455,6 +491,25 @@ export default function Dashboard({ navigate, logout, user }) {
                 ))}
               </select>
 
+              {/* Country */}
+              {uniqueCountries.length > 0 && (
+                <select style={S.select} value={filterCountry} onChange={e => setFilterCountry(e.target.value)}>
+                  <option value="all">🌍 All Countries</option>
+                  {uniqueCountries.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Deadline */}
+              <select style={S.select} value={filterDeadline} onChange={e => setFilterDeadline(e.target.value)}>
+                <option value="all">📅 Any Deadline</option>
+                <option value="week">Due This Week</option>
+                <option value="month">Due This Month</option>
+                <option value="overdue">Overdue</option>
+              </select>
+
+              {/* Min score slider */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 12, color: "#666", whiteSpace: "nowrap" }}>
                   Min score:
@@ -465,25 +520,44 @@ export default function Dashboard({ navigate, logout, user }) {
                   onChange={e => setMinScore(+e.target.value)}
                   style={{ width: 80 }}
                 />
-                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.dark, minWidth: 26 }}>
-                  {minScore}
+                <span style={{
+                  fontSize: 12, fontWeight: 700, minWidth: 26,
+                  color: minScore >= 70 ? COLORS.green : minScore >= 40 ? COLORS.amber : COLORS.dark,
+                }}>
+                  {minScore}%
                 </span>
               </div>
+
+              {/* Reset filters */}
+              {(filterType !== "all" || filterStatus !== "all" || filterCountry !== "all" ||
+                filterDeadline !== "all" || searchText || minScore > 0) && (
+                <button
+                  style={{ ...S.btn("#eee", "#555"), fontSize: 12 }}
+                  onClick={() => {
+                    setFilterType("all"); setFilterStatus("all"); setFilterCountry("all")
+                    setFilterDeadline("all"); setSearchText(""); setMinScore(0)
+                  }}
+                >
+                  ✕ Reset
+                </button>
+              )}
             </div>
           </div>
 
-          {opps.length === 0 ? (
+          {filteredOpps.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>🔍</div>
               <div style={{ fontSize: 15, marginBottom: 6, color: "#999" }}>
-                No opportunities yet
+                {opps.length === 0 ? "No opportunities yet" : "No results match your filters"}
               </div>
               <div style={{ fontSize: 13 }}>
-                Click "Run Pipeline" above to find your first opportunities
+                {opps.length === 0
+                  ? "Click \"Run Pipeline\" above to find your first opportunities"
+                  : "Try adjusting or resetting your filters"}
               </div>
             </div>
           ) : (
-            opps.map(opp => (
+            filteredOpps.map(opp => (
               <div
                 key={opp.id}
                 style={{
@@ -505,6 +579,9 @@ export default function Dashboard({ navigate, logout, user }) {
                       <span style={S.scorePill(opp.match_score)}>{opp.match_score}%</span>
                       {opp.opp_type && (
                         <span style={S.typePill}>{opp.opp_type}</span>
+                      )}
+                      {opp.country && opp.country !== "Not found" && (
+                        <span style={{ fontSize: 11, color: "#666" }}>🌍 {opp.country}</span>
                       )}
                       {opp.deadline && opp.deadline !== "Not found" && (
                         <span style={{ fontSize: 11, color: COLORS.orange }}>
