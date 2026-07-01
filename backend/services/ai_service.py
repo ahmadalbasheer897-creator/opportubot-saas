@@ -140,3 +140,57 @@ async def enhance_opportunity_description(title: str, raw_description: str) -> s
         return msg.content[0].text
     except Exception:
         return raw_description
+
+
+async def generate_cover_letter(
+    opportunity_title: str,
+    opportunity_description: str,
+    opportunity_url: str,
+    user_name: str,
+    cv_text: Optional[str] = None,
+    user_skills: Optional[str] = None,
+    language: str = "English",
+) -> Optional[str]:
+    """
+    Generate a professional cover letter tailored to the opportunity and user profile.
+    Returns the cover letter text or None on failure.
+    """
+    if not settings.ANTHROPIC_API_KEY:
+        return None
+
+    profile_section = ""
+    if cv_text:
+        profile_section = f"\n\nCandidate CV (excerpt):\n{cv_text[:2000]}"
+    elif user_skills:
+        profile_section = f"\n\nCandidate Skills: {user_skills}"
+
+    lang_instruction = "Write in English" if language == "English" else "اكتب باللغة العربية"
+
+    prompt = f"""You are an expert career coach and professional writer.
+Write a compelling, personalized cover letter for the following opportunity.
+
+Opportunity: {opportunity_title}
+Description: {(opportunity_description or '')[:500]}
+URL: {opportunity_url}
+Candidate Name: {user_name}{profile_section}
+
+Instructions:
+- {lang_instruction}
+- 3-4 paragraphs: opening hook, skills match, motivation, closing call-to-action
+- Professional but warm tone
+- Specific to this opportunity, not generic
+- Under 350 words
+- Do NOT include date, address headers, or "Dear Hiring Manager" — start directly with a strong opening sentence
+- End with the candidate's name: {user_name}
+
+Write the cover letter now:"""
+
+    try:
+        msg = _client().messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text.strip()
+    except Exception as e:
+        return None
