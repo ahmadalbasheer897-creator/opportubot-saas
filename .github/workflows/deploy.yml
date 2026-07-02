@@ -30,7 +30,7 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          VITE_API_URL: https://opportubot-production.up.railway.app
+          VITE_API_URL: https://opportubot-saas.onrender.com
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
