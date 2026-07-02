@@ -35,6 +35,8 @@ def update_profile(
         current_user.skills = data.skills
     if data.onboarding_done is not None:
         current_user.onboarding_done = data.onboarding_done
+    if data.selected_sources is not None:
+        current_user.selected_sources = data.selected_sources
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -91,6 +93,12 @@ async def upload_cv(
 def get_plan_top(current_user: User = Depends(get_current_user)):
     return _build_plan(current_user)
 
+@profile_router.get("/sources")
+def get_sources(current_user: User = Depends(get_current_user)):
+    """Return all curated sources grouped by type."""
+    from services.search_service import get_all_sources
+    return get_all_sources()
+
 # ── /pipeline ─────────────────────────────────────────────────────────────────
 pipeline_router = APIRouter(tags=["Pipeline"])
 
@@ -106,12 +114,35 @@ async def run_pipeline(
     # Build personalized query from CV profile if available
     if current_user.skills:
         skills_short = ", ".join(current_user.skills.split(",")[:4])
-        query = f"{skills_short} jobs scholarships internships opportunities 2025"
+        query = f"{skills_short} opportunities"
     else:
-        query = "software engineer jobs scholarships internships opportunities 2025"
+        query = "scholarships jobs internships opportunities"
+
+    # Parse user's selected sources (comma-separated domains)
+    selected_sources = None
+    if current_user.selected_sources:
+        selected_sources = [s.strip() for s in current_user.selected_sources.split(",") if s.strip()]
+
+    # Detect preferred types to run targeted searches per type
+    preferred_types = None
+    if current_user.preferred_types:
+        preferred_types = [t.strip() for t in current_user.preferred_types.split(",") if t.strip()]
 
     try:
-        results = await search_opportunities(query=query, limit=20)
+        if preferred_types:
+            # Run a separate search per preferred type and merge results
+            all_results = []
+            for ptype in preferred_types[:3]:  # limit to 3 types max
+                r = await search_opportunities(
+                    query=query, opp_type=ptype, limit=8,
+                    selected_sources=selected_sources
+                )
+                all_results.extend(r)
+            results = all_results[:20]
+        else:
+            results = await search_opportunities(
+                query=query, limit=20, selected_sources=selected_sources
+            )
     except Exception as e:
         return {"message": f"Search error: {str(e)}", "status": "error", "count": 0}
 
