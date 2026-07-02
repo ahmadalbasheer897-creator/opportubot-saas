@@ -37,6 +37,7 @@ def run_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_types TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_sources TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_sources TEXT",
         # user_opportunities table
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS ai_analysis TEXT",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT 0",

@@ -56,7 +56,8 @@ class User(Base):
     preferred_countries = Column(Text, nullable=True)       # comma-separated
     preferred_types = Column(Text, nullable=True)           # comma-separated opp types
     onboarding_done = Column(Boolean, default=False)
-    selected_sources = Column(Text, nullable=True)          # comma-separated domains
+    selected_sources = Column(Text, nullable=True)          # comma-separated curated domains
+    custom_sources   = Column(Text, nullable=True)          # comma-separated user-added domains
 
     saved = relationship("SavedOpportunity", back_populates="user", cascade="all, delete")
     searches = relationship("SearchHistory", back_populates="user", cascade="all, delete")

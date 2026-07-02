@@ -37,6 +37,8 @@ def update_profile(
         current_user.onboarding_done = data.onboarding_done
     if data.selected_sources is not None:
         current_user.selected_sources = data.selected_sources
+    if data.custom_sources is not None:
+        current_user.custom_sources = data.custom_sources
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -118,10 +120,13 @@ async def run_pipeline(
     else:
         query = "scholarships jobs internships opportunities"
 
-    # Parse user's selected sources (comma-separated domains)
-    selected_sources = None
+    # Parse user's selected sources (curated + custom)
+    selected_sources = []
     if current_user.selected_sources:
-        selected_sources = [s.strip() for s in current_user.selected_sources.split(",") if s.strip()]
+        selected_sources += [s.strip() for s in current_user.selected_sources.split(",") if s.strip()]
+    if current_user.custom_sources:
+        selected_sources += [s.strip() for s in current_user.custom_sources.split(",") if s.strip()]
+    selected_sources = selected_sources if selected_sources else None
 
     # Detect preferred types to run targeted searches per type
     preferred_types = None

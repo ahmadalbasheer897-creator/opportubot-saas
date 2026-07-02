@@ -37,6 +37,7 @@ class UserOut(BaseModel):
     preferred_types: Optional[str] = None
     onboarding_done: bool = False
     selected_sources: Optional[str] = None
+    custom_sources: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -55,6 +56,7 @@ class ProfileUpdate(BaseModel):
     skills: Optional[str] = None
     onboarding_done: Optional[bool] = None
     selected_sources: Optional[str] = None
+    custom_sources: Optional[str] = None
 
 
 class Token(BaseModel):

@@ -118,6 +118,11 @@ export default function Dashboard({ navigate, logout, user }) {
   const [noteInputs,     setNoteInputs]     = useState({})
   const [showProfile,    setShowProfile]    = useState(false)
   const [profileEdit,    setProfileEdit]    = useState({})
+  const [showSources,    setShowSources]    = useState(false)
+  const [sourcesData,    setSourcesData]    = useState(null)   // grouped by type from /sources
+  const [selectedDomains,setSelectedDomains]= useState([])     // user's chosen curated domains
+  const [customSources,  setCustomSources]  = useState([])     // user-added custom domains
+  const [customInput,    setCustomInput]    = useState("")      // input field value
 
 
   const token   = localStorage.getItem("ob_token")
@@ -128,12 +133,21 @@ export default function Dashboard({ navigate, logout, user }) {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [s, p] = await Promise.all([
+      const [s, p, srcs] = await Promise.all([
         fetch(API + "/opportunities/stats", { headers }).then(r => r.json()),
         fetch(API + "/profile",             { headers }).then(r => r.json()),
+        fetch(API + "/sources",             { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
       ])
       setStats(s)
       setProfile(p && Object.keys(p).length > 0 ? p : null)
+      if (srcs) setSourcesData(srcs)
+      // Init selected domains from saved profile
+      if (p && p.selected_sources) {
+        setSelectedDomains(p.selected_sources.split(",").map(d => d.trim()).filter(Boolean))
+      }
+      if (p && p.custom_sources) {
+        setCustomSources(p.custom_sources.split(",").map(d => d.trim()).filter(Boolean))
+      }
       // Show onboarding for new users who haven't completed it
       if (p && p.onboarding_done === false && !localStorage.getItem("ob_onboarding_skipped")) {
         setShowOnboarding(true)
@@ -280,6 +294,38 @@ export default function Dashboard({ navigate, logout, user }) {
     })
     setShowProfile(false)
     loadAll()
+  }
+
+  const saveSources = async () => {
+    await fetch(API + "/profile", {
+      method: "PUT", headers,
+      body: JSON.stringify({
+        selected_sources: selectedDomains.join(","),
+        custom_sources: customSources.join(","),
+      }),
+    })
+    setShowSources(false)
+  }
+
+  const addCustomSource = () => {
+    const raw = customInput.trim()
+    if (!raw) return
+    // Extract clean domain from URL or plain domain
+    let domain = raw
+    try {
+      const url = raw.startsWith("http") ? raw : "https://" + raw
+      domain = new URL(url).hostname.replace(/^www\./, "")
+    } catch { domain = raw.replace(/^www\./, "").split("/")[0] }
+    if (domain && !customSources.includes(domain)) {
+      setCustomSources(prev => [...prev, domain])
+    }
+    setCustomInput("")
+  }
+
+  const toggleDomain = (domain) => {
+    setSelectedDomains(prev =>
+      prev.includes(domain) ? prev.filter(d => d !== domain) : [...prev, domain]
+    )
   }
 
   const updateStatus = async (oppId, status, e) => {
@@ -502,6 +548,118 @@ export default function Dashboard({ navigate, logout, user }) {
         </div>
       )}
 
+      {/* ── Sources Modal ─────────────────────────────────────── */}
+      {showSources && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20,
+        }} onClick={() => setShowSources(false)}>
+          <div style={{
+            background: "white", borderRadius: 16, padding: 28, maxWidth: 560, width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxHeight: "88vh", overflowY: "auto",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: COLORS.dark, marginBottom: 4 }}>🌐 Search Sources</div>
+            <p style={{ fontSize: 13, color: "#666", marginBottom: 16, lineHeight: 1.5 }}>
+              Choose which websites OpportuBot searches for opportunities.
+              Leave all unchecked to search all sources automatically.
+            </p>
+            {/* ── Custom Sites Section ── */}
+            <div style={{ background: "#F0F7FF", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blue, textTransform: "uppercase",
+                letterSpacing: 1, marginBottom: 10 }}>
+                ➕ Add Your Own Sites
+              </div>
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+                أضف أي موقع تعرفه فيه فرص — البوت سيبحث فيه تلقائياً
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: customSources.length > 0 ? 10 : 0 }}>
+                <input
+                  placeholder="مثال: opportunitydesk.org أو الصق رابط كامل"
+                  value={customInput}
+                  onChange={e => setCustomInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addCustomSource()}
+                  style={{ ...S.input, flex: 1, fontSize: 12 }}
+                />
+                <button onClick={addCustomSource} style={{ ...S.btn(COLORS.green), fontSize: 12 }}>
+                  + Add
+                </button>
+              </div>
+              {customSources.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {customSources.map(domain => (
+                    <div key={domain} style={{
+                      padding: "5px 12px", borderRadius: 20, fontSize: 12,
+                      background: "#E8F5E9", border: "1.5px solid " + COLORS.green,
+                      color: COLORS.green, fontWeight: 700,
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      🌐 {domain}
+                      <span
+                        onClick={() => setCustomSources(prev => prev.filter(d => d !== domain))}
+                        style={{ cursor: "pointer", fontSize: 16, lineHeight: 1, fontWeight: 400 }}
+                        title="Remove"
+                      >×</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Curated Sources count + clear ── */}
+            {selectedDomains.length > 0 && (
+              <div style={{ marginBottom: 14, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: COLORS.blue, fontWeight: 600 }}>
+                  {selectedDomains.length} curated source{selectedDomains.length !== 1 ? "s" : ""} selected
+                </span>
+                <button onClick={() => setSelectedDomains([])}
+                  style={{ fontSize: 11, padding: "2px 10px", borderRadius: 10, border: "none",
+                    background: "#FFEBEE", color: COLORS.red, cursor: "pointer", fontWeight: 600 }}>
+                  Clear all
+                </button>
+              </div>
+            )}
+            {sourcesData ? Object.entries(sourcesData).map(([type, sources]) => (
+              <div key={type} style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase",
+                  letterSpacing: 1, marginBottom: 8 }}>
+                  {type === "scholarship" ? "🎓 Scholarships" :
+                   type === "job" ? "💼 Jobs" :
+                   type === "internship" ? "🧑‍💻 Internships" :
+                   type === "volunteering" ? "🤝 Volunteering" :
+                   type === "conference" ? "🎤 Conferences" :
+                   type === "training" ? "📚 Training" : type}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {sources.map(src => {
+                    const on = selectedDomains.includes(src.domain)
+                    return (
+                      <div key={src.domain} onClick={() => toggleDomain(src.domain)} style={{
+                        padding: "6px 14px", borderRadius: 20, fontSize: 13, cursor: "pointer",
+                        border: "1.5px solid " + (on ? COLORS.blue : "#ddd"),
+                        background: on ? "#E3F2FD" : "white",
+                        color: on ? COLORS.blue : "#555",
+                        fontWeight: on ? 700 : 400,
+                        transition: "all .15s",
+                      }}>
+                        {on ? "✓ " : ""}{src.name}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )) : (
+              <div style={{ color: "#888", fontSize: 13, padding: "20px 0" }}>Loading sources...</div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button onClick={saveSources}
+                style={{ ...S.btn(COLORS.blue), flex: 1 }}>Save Preferences</button>
+              <button onClick={() => setShowSources(false)}
+                style={{ ...S.btn("#eee", "#555"), flex: 1 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ───────────────────────────────────────────── */}
       <div style={S.header}>
         <div style={S.logo}>🤖 {t("appName")}</div>
@@ -526,6 +684,13 @@ export default function Dashboard({ navigate, logout, user }) {
             onClick={() => { setProfileEdit({ name: profile?.name || "", experience_level: profile?.experience_level || "", preferred_countries: profile?.preferred_countries || "", preferred_types: profile?.preferred_types || "", skills: profile?.skills || "" }); setShowProfile(true) }}
           >
             👤 Profile
+          </button>
+          <button
+            style={{ ...S.btn("rgba(255,255,255,0.15)", "white"), border: "1px solid rgba(255,255,255,0.3)", fontSize: 12 }}
+            onClick={() => setShowSources(true)}
+            title="Choose which sites to search"
+          >
+            🌐 Sources{(selectedDomains.length + customSources.length) > 0 ? ` (${selectedDomains.length + customSources.length})` : ""}
           </button>
           {user?.is_owner && (
             <button style={S.btn("#283593")} onClick={() => navigate("admin")}>
@@ -815,9 +980,9 @@ export default function Dashboard({ navigate, logout, user }) {
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6, flexWrap: "wrap" }}>
-                      <span style={S.scorePill(opp.match_score)}>{opp.match_score}%</span>
-                      {opp.opp_type && (
-                        <span style={S.typePill}>{opp.opp_type}</span>
+                      <span style={S.scorePill(opp.score)}>{opp.score}%</span>
+                      {opp.type && (
+                        <span style={S.typePill}>{opp.type}</span>
                       )}
                       {opp.country && opp.country !== "Not found" && (
                         <span style={{ fontSize: 11, color: "#666" }}>🌍 {opp.country}</span>
