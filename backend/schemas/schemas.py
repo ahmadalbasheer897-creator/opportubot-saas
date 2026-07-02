@@ -32,7 +32,26 @@ class UserOut(BaseModel):
     cv_filename: Optional[str] = None
     profile_summary: Optional[str] = None
     skills: Optional[str] = None
+    # Personal
     experience_level: Optional[str] = None
+    nationality: Optional[str] = None
+    country_of_residence: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    # Academic
+    education_level: Optional[str] = None
+    field_of_study: Optional[str] = None
+    university: Optional[str] = None
+    gpa: Optional[str] = None
+    graduation_year: Optional[str] = None
+    # Professional
+    current_occupation: Optional[str] = None
+    languages: Optional[str] = None
+    career_goals: Optional[str] = None
+    # Preferences
     preferred_countries: Optional[str] = None
     preferred_types: Optional[str] = None
     onboarding_done: bool = False
@@ -50,10 +69,29 @@ class UserUpdate(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
+    skills: Optional[str] = None
+    # Personal
     experience_level: Optional[str] = None
+    nationality: Optional[str] = None
+    country_of_residence: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    # Academic
+    education_level: Optional[str] = None
+    field_of_study: Optional[str] = None
+    university: Optional[str] = None
+    gpa: Optional[str] = None
+    graduation_year: Optional[str] = None
+    # Professional
+    current_occupation: Optional[str] = None
+    languages: Optional[str] = None
+    career_goals: Optional[str] = None
+    # Preferences
     preferred_countries: Optional[str] = None
     preferred_types: Optional[str] = None
-    skills: Optional[str] = None
     onboarding_done: Optional[bool] = None
     selected_sources: Optional[str] = None
     custom_sources: Optional[str] = None

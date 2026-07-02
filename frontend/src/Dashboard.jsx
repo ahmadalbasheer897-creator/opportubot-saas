@@ -488,65 +488,179 @@ export default function Dashboard({ navigate, logout, user }) {
       )}
 
       {/* ── Profile Modal ─────────────────────────────────────── */}
-      {showProfile && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20,
-        }} onClick={() => setShowProfile(false)}>
-          <div style={{
-            background: "white", borderRadius: 16, padding: 28, maxWidth: 480, width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxHeight: "85vh", overflowY: "auto",
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>👤 My Profile</div>
-            {profile?.cv_filename && (
-              <div style={{ fontSize: 12, color: COLORS.green, marginBottom: 16 }}>
-                ✅ CV on file: {profile.cv_filename}
-              </div>
-            )}
-            {[
-              { label: "Name", key: "name", type: "text", placeholder: "Your full name" },
-              { label: "Skills (comma-separated)", key: "skills", type: "text", placeholder: "React, Python, Marketing..." },
-            ].map(f => (
-              <div key={f.key} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>{f.label}</div>
-                <input type={f.type} placeholder={f.placeholder}
-                  value={profileEdit[f.key] || ""}
-                  onChange={e => setProfileEdit(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-            ))}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Experience Level</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {["Beginner","Junior","Mid-level","Senior"].map(l => (
-                  <div key={l} onClick={() => setProfileEdit(p => ({ ...p, experience_level: l }))}
-                    style={{ padding: "5px 14px", borderRadius: 16, fontSize: 13, cursor: "pointer",
-                      border: "1.5px solid " + (profileEdit.experience_level === l ? "#1565C0" : "#ddd"),
-                      background: profileEdit.experience_level === l ? "#E3F2FD" : "white",
-                      color: profileEdit.experience_level === l ? "#1565C0" : "#555", fontWeight: profileEdit.experience_level === l ? 700 : 400 }}>
-                    {l}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>Preferred Countries</div>
-              <input placeholder="Iraq, Germany, USA..."
-                value={profileEdit.preferred_countries || ""}
-                onChange={e => setProfileEdit(p => ({ ...p, preferred_countries: e.target.value }))}
-                style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-              <button onClick={saveProfile}
-                style={{ ...S.btn(COLORS.blue), flex: 1 }}>Save Profile</button>
-              <button onClick={() => setShowProfile(false)}
-                style={{ ...S.btn("#eee", "#555"), flex: 1 }}>Cancel</button>
+      {showProfile && (() => {
+        const inp = (label, key, placeholder, type="text") => (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>{label}</div>
+            <input type={type} placeholder={placeholder}
+              value={profileEdit[key] || ""}
+              onChange={e => setProfileEdit(p => ({ ...p, [key]: e.target.value }))}
+              style={{ width: "100%", padding: "8px 11px", border: "1.5px solid #ddd", borderRadius: 8,
+                fontSize: 13, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+        )
+        const sel = (label, key, opts) => (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>{label}</div>
+            <select value={profileEdit[key] || ""}
+              onChange={e => setProfileEdit(p => ({ ...p, [key]: e.target.value }))}
+              style={{ width: "100%", padding: "8px 11px", border: "1.5px solid #ddd", borderRadius: 8,
+                fontSize: 13, background: "white", outline: "none", boxSizing: "border-box" }}>
+              <option value="">— Select —</option>
+              {opts.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        )
+        const chips = (label, key, opts) => (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 6 }}>{label}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {opts.map(o => {
+                const on = profileEdit[key] === o
+                return (
+                  <div key={o} onClick={() => setProfileEdit(p => ({ ...p, [key]: o }))}
+                    style={{ padding: "4px 12px", borderRadius: 14, fontSize: 12, cursor: "pointer",
+                      border: "1.5px solid " + (on ? COLORS.blue : "#ddd"),
+                      background: on ? "#E3F2FD" : "white", color: on ? COLORS.blue : "#555",
+                      fontWeight: on ? 700 : 400 }}>{o}</div>
+                )
+              })}
             </div>
           </div>
-        </div>
-      )}
+        )
+        const section = (icon, title) => (
+          <div style={{ fontSize: 12, fontWeight: 800, color: COLORS.dark, borderBottom: "2px solid #f0f2f5",
+            paddingBottom: 6, marginBottom: 14, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            {icon} {title}
+          </div>
+        )
+        return (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 16,
+          }} onClick={() => setShowProfile(false)}>
+            <div style={{
+              background: "white", borderRadius: 18, padding: "24px 28px", maxWidth: 580, width: "100%",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.25)", maxHeight: "92vh", overflowY: "auto",
+            }} onClick={e => e.stopPropagation()}>
+
+              <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.dark, marginBottom: 2 }}>👤 My Profile</div>
+              <div style={{ fontSize: 12, color: "#999", marginBottom: 20 }}>
+                The more you fill in, the better OpportuBot matches opportunities for you.
+              </div>
+
+              {/* Personal */}
+              {section("🪪", "Personal Information")}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                {inp("Full Name", "name", "Ahmad Al-Basheer")}
+                {inp("Phone / WhatsApp", "phone", "+964 7XX XXX XXXX")}
+                {inp("Nationality", "nationality", "Iraqi")}
+                {inp("Country of Residence", "country_of_residence", "Iraq")}
+                {inp("Date of Birth", "date_of_birth", "YYYY-MM-DD", "date")}
+                {sel("Gender", "gender", ["Male","Female","Prefer not to say"])}
+              </div>
+
+              {/* Online Presence */}
+              {section("🔗", "Online Presence")}
+              {inp("LinkedIn URL", "linkedin_url", "https://linkedin.com/in/yourname")}
+              {inp("Portfolio / Website", "portfolio_url", "https://yourwebsite.com")}
+
+              {/* Academic */}
+              {section("🎓", "Academic Background")}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                {sel("Education Level", "education_level", ["High School","Bachelor's","Master's","PhD","Other"])}
+                {inp("Field of Study", "field_of_study", "Computer Science")}
+                {inp("University / Institution", "university", "University of Baghdad")}
+                {inp("GPA", "gpa", "3.8 / 4.0")}
+                {inp("Graduation Year", "graduation_year", "2024")}
+              </div>
+
+              {/* Professional */}
+              {section("💼", "Professional Info")}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                {inp("Current Occupation", "current_occupation", "Software Engineer / Student")}
+                {inp("Skills (comma-separated)", "skills", "Python, React, Data Analysis")}
+              </div>
+              {chips("Experience Level", "experience_level", ["Beginner","Junior","Mid-level","Senior"])}
+              {inp("Languages (e.g. Arabic (Native), English (C1))", "languages", "Arabic (Native), English (B2)")}
+
+              {/* Goals */}
+              {section("🎯", "Goals & Preferences")}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>Career Goals / Statement of Purpose</div>
+                <textarea
+                  placeholder="Briefly describe your career goals, research interests, or what kind of opportunities you're looking for..."
+                  value={profileEdit.career_goals || ""}
+                  onChange={e => setProfileEdit(p => ({ ...p, career_goals: e.target.value }))}
+                  rows={3}
+                  style={{ width: "100%", padding: "8px 11px", border: "1.5px solid #ddd", borderRadius: 8,
+                    fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
+                />
+              </div>
+              {inp("Preferred Countries (comma-separated)", "preferred_countries", "Germany, Canada, UAE")}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 6 }}>Opportunity Types I'm Interested In</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["scholarship","job","internship","volunteering","conference","training"].map(t => {
+                    const selected = (profileEdit.preferred_types || "").split(",").map(x => x.trim()).filter(Boolean)
+                    const on = selected.includes(t)
+                    return (
+                      <div key={t} onClick={() => {
+                        const next = on ? selected.filter(x => x !== t) : [...selected, t]
+                        setProfileEdit(p => ({ ...p, preferred_types: next.join(",") }))
+                      }} style={{
+                        padding: "4px 14px", borderRadius: 14, fontSize: 12, cursor: "pointer",
+                        border: "1.5px solid " + (on ? COLORS.blue : "#ddd"),
+                        background: on ? "#E3F2FD" : "white",
+                        color: on ? COLORS.blue : "#555", fontWeight: on ? 700 : 400,
+                      }}>
+                        {on ? "✓ " : ""}{t.charAt(0).toUpperCase() + t.slice(1)}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* CV */}
+              {section("📄", "CV / Resume")}
+              {profile?.cv_filename && (
+                <div style={{ fontSize: 12, color: COLORS.green, marginBottom: 10, fontWeight: 600 }}>
+                  ✅ CV on file: {profile.cv_filename}
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>
+                Upload your CV (PDF) — OpportuBot will extract your skills, experience, and goals automatically.
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                <input type="file" accept=".pdf"
+                  onChange={e => setCvFile(e.target.files[0])}
+                  style={{ fontSize: 12, flex: 1, minWidth: 0 }}
+                />
+                <button style={S.btn(uploading || !cvFile ? "#bbb" : COLORS.green)}
+                  onClick={uploadCV} disabled={uploading || !cvFile}>
+                  {uploading ? "Uploading…" : "Upload CV"}
+                </button>
+              </div>
+              {cvMsg && (
+                <div style={{ fontSize: 12, marginBottom: 8,
+                  color: cvMsg.includes("progress") ? COLORS.green : COLORS.red }}>
+                  {cvMsg}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+                <button onClick={saveProfile} style={{ ...S.btn(COLORS.blue), flex: 1, padding: "11px" }}>
+                  💾 Save Profile
+                </button>
+                <button onClick={() => setShowProfile(false)} style={{ ...S.btn("#eee", "#555"), flex: 1, padding: "11px" }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Sources Modal ─────────────────────────────────────── */}
       {showSources && (
@@ -681,7 +795,31 @@ export default function Dashboard({ navigate, logout, user }) {
           </button>
           <button
             style={{ ...S.btn("rgba(255,255,255,0.15)", "white"), border: "1px solid rgba(255,255,255,0.3)", fontSize: 12 }}
-            onClick={() => { setProfileEdit({ name: profile?.name || "", experience_level: profile?.experience_level || "", preferred_countries: profile?.preferred_countries || "", preferred_types: profile?.preferred_types || "", skills: profile?.skills || "" }); setShowProfile(true) }}
+            onClick={() => {
+              setProfileEdit({
+                name: profile?.name || "",
+                phone: profile?.phone || "",
+                nationality: profile?.nationality || "",
+                country_of_residence: profile?.country_of_residence || "",
+                date_of_birth: profile?.date_of_birth || "",
+                gender: profile?.gender || "",
+                linkedin_url: profile?.linkedin_url || "",
+                portfolio_url: profile?.portfolio_url || "",
+                education_level: profile?.education_level || "",
+                field_of_study: profile?.field_of_study || "",
+                university: profile?.university || "",
+                gpa: profile?.gpa || "",
+                graduation_year: profile?.graduation_year || "",
+                current_occupation: profile?.current_occupation || "",
+                skills: profile?.skills || "",
+                experience_level: profile?.experience_level || "",
+                languages: profile?.languages || "",
+                career_goals: profile?.career_goals || "",
+                preferred_countries: profile?.preferred_countries || "",
+                preferred_types: profile?.preferred_types || "",
+              })
+              setShowProfile(true)
+            }}
           >
             👤 Profile
           </button>
@@ -750,43 +888,24 @@ export default function Dashboard({ navigate, logout, user }) {
             )}
           </div>
 
-          {/* Upload CV */}
-          <div style={S.actionCard}>
-            <div style={S.cardTitle}>
-              📄 {profile ? t("updateCV") : t("uploadCV")}
-              {profile && (
-                <span style={{ fontSize: 12, color: COLORS.green, fontWeight: 400, marginLeft: 8 }}>
-                  {t("cvOnFile")}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-              {t("cvDesc")}
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={e => setCvFile(e.target.files[0])}
-                style={{ fontSize: 12, flex: 1, minWidth: 0 }}
-              />
+          {/* Profile Completeness hint — shows if CV not uploaded */}
+          {!profile?.cv_filename && (
+            <div style={{ ...S.actionCard, background: "#FFFDE7", border: "1.5px dashed #F9A825" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#F57F17", marginBottom: 6 }}>📄 Upload Your CV</div>
+              <div style={{ fontSize: 12, color: "#795548", marginBottom: 12 }}>
+                Go to <strong>👤 Profile</strong> to upload your CV — OpportuBot will analyze it and find better matches for you.
+              </div>
               <button
-                style={S.btn(uploading || !cvFile ? "#bbb" : COLORS.green)}
-                onClick={uploadCV}
-                disabled={uploading || !cvFile}
+                style={{ ...S.btn("#F9A825", "white"), width: "100%" }}
+                onClick={() => {
+                  setProfileEdit({ name: profile?.name || "" })
+                  setShowProfile(true)
+                }}
               >
-                {uploading ? t("uploading") : t("upload")}
+                Open Profile →
               </button>
             </div>
-            {cvMsg && (
-              <div style={{
-                fontSize: 12, marginTop: 8,
-                color: cvMsg.includes("progress") || cvMsg.includes("جارٍ") ? COLORS.green : COLORS.red,
-              }}>
-                {cvMsg}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Upgrade to Pro — only on free plan */}
           {plan === "free" && (

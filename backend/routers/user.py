@@ -23,22 +23,21 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     """Update extended profile fields."""
-    if data.name is not None:
-        current_user.name = data.name
-    if data.experience_level is not None:
-        current_user.experience_level = data.experience_level
-    if data.preferred_countries is not None:
-        current_user.preferred_countries = data.preferred_countries
-    if data.preferred_types is not None:
-        current_user.preferred_types = data.preferred_types
-    if data.skills is not None:
-        current_user.skills = data.skills
+    simple_fields = [
+        "name", "skills", "experience_level",
+        "nationality", "country_of_residence", "date_of_birth", "gender",
+        "phone", "linkedin_url", "portfolio_url",
+        "education_level", "field_of_study", "university", "gpa", "graduation_year",
+        "current_occupation", "languages", "career_goals",
+        "preferred_countries", "preferred_types",
+        "selected_sources", "custom_sources",
+    ]
+    for field in simple_fields:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(current_user, field, val)
     if data.onboarding_done is not None:
         current_user.onboarding_done = data.onboarding_done
-    if data.selected_sources is not None:
-        current_user.selected_sources = data.selected_sources
-    if data.custom_sources is not None:
-        current_user.custom_sources = data.custom_sources
     db.commit()
     db.refresh(current_user)
     return current_user

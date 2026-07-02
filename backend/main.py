@@ -31,8 +31,26 @@ def run_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_summary TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_filename VARCHAR(255)",
-        # users extended profile
+        # users extended profile — personal
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS experience_level VARCHAR(50)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS nationality VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS country_of_residence VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(500)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS portfolio_url VARCHAR(500)",
+        # academic
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS education_level VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS field_of_study VARCHAR(200)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS university VARCHAR(200)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gpa VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS graduation_year VARCHAR(10)",
+        # professional
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS current_occupation VARCHAR(200)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS languages TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS career_goals TEXT",
+        # preferences
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_countries TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_types TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE",

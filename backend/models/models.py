@@ -51,13 +51,34 @@ class User(Base):
     skills = Column(Text, nullable=True)
     cv_filename = Column(String(255), nullable=True)
 
-    # Extended profile
-    experience_level = Column(String(50), nullable=True)   # beginner/junior/mid/senior
-    preferred_countries = Column(Text, nullable=True)       # comma-separated
-    preferred_types = Column(Text, nullable=True)           # comma-separated opp types
-    onboarding_done = Column(Boolean, default=False)
-    selected_sources = Column(Text, nullable=True)          # comma-separated curated domains
-    custom_sources   = Column(Text, nullable=True)          # comma-separated user-added domains
+    # Extended profile — personal
+    experience_level     = Column(String(50),  nullable=True)
+    nationality          = Column(String(100), nullable=True)
+    country_of_residence = Column(String(100), nullable=True)
+    date_of_birth        = Column(String(20),  nullable=True)
+    gender               = Column(String(20),  nullable=True)
+    phone                = Column(String(50),  nullable=True)
+    linkedin_url         = Column(String(500), nullable=True)
+    portfolio_url        = Column(String(500), nullable=True)
+
+    # Academic
+    education_level  = Column(String(100), nullable=True)
+    field_of_study   = Column(String(200), nullable=True)
+    university       = Column(String(200), nullable=True)
+    gpa              = Column(String(20),  nullable=True)
+    graduation_year  = Column(String(10),  nullable=True)
+
+    # Professional
+    current_occupation = Column(String(200), nullable=True)
+    languages          = Column(Text, nullable=True)
+    career_goals       = Column(Text, nullable=True)
+
+    # Opportunity preferences
+    preferred_countries = Column(Text, nullable=True)
+    preferred_types     = Column(Text, nullable=True)
+    onboarding_done     = Column(Boolean, default=False)
+    selected_sources    = Column(Text, nullable=True)
+    custom_sources      = Column(Text, nullable=True)
 
     saved = relationship("SavedOpportunity", back_populates="user", cascade="all, delete")
     searches = relationship("SearchHistory", back_populates="user", cascade="all, delete")
