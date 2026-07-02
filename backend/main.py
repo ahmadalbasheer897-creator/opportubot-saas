@@ -31,6 +31,12 @@ def run_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_summary TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_filename VARCHAR(255)",
+        # users extended profile
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS experience_level VARCHAR(50)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_countries TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_types TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_sources TEXT",
         # user_opportunities table
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS ai_analysis TEXT",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT 0",
@@ -39,6 +45,7 @@ def run_migrations():
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS country VARCHAR(100)",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS deadline VARCHAR(100)",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS source VARCHAR(255)",
+        "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS notes TEXT",
     ]
     with engine.connect() as conn:
         for sql in migrations:
