@@ -12,8 +12,10 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 // Detect page from URL path/params on initial load
 const detectInitialPage = () => {
   const path = window.location.pathname
-  if (path === "/verify-email" || path.startsWith("/verify-email")) return "verify-email"
-  if (path === "/reset-password" || path.startsWith("/reset-password")) return "reset-password"
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+  const clean = base && path.startsWith(base) ? path.slice(base.length) : path
+  if (clean === "/verify-email" || clean.startsWith("/verify-email")) return "verify-email"
+  if (clean === "/reset-password" || clean.startsWith("/reset-password")) return "reset-password"
   return null
 }
 
@@ -71,7 +73,7 @@ export default function App() {
     window.scrollTo(0, 0)
     // Clean URL when navigating away from special pages
     if (newPage !== "verify-email" && newPage !== "reset-password") {
-      window.history.replaceState({}, "", "/")
+      window.history.replaceState({}, "", import.meta.env.BASE_URL)
     }
   }
 
