@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models.models import User, UserOpportunity, OpportunityType, PlanType
-from schemas.schemas import UserOut, UserUpdate
+from schemas.schemas import UserOut, UserUpdate, ProfileUpdate
 from auth import get_current_user, hash_password
 
 router = APIRouter(prefix="/user", tags=["User"])
@@ -13,6 +13,30 @@ profile_router = APIRouter(tags=["Profile"])
 
 @profile_router.get("/profile", response_model=UserOut)
 def get_profile(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@profile_router.put("/profile", response_model=UserOut)
+def update_profile(
+    data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update extended profile fields."""
+    if data.name is not None:
+        current_user.name = data.name
+    if data.experience_level is not None:
+        current_user.experience_level = data.experience_level
+    if data.preferred_countries is not None:
+        current_user.preferred_countries = data.preferred_countries
+    if data.preferred_types is not None:
+        current_user.preferred_types = data.preferred_types
+    if data.skills is not None:
+        current_user.skills = data.skills
+    if data.onboarding_done is not None:
+        current_user.onboarding_done = data.onboarding_done
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 @profile_router.post("/profile/upload-cv")

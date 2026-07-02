@@ -29,6 +29,13 @@ class UserOut(BaseModel):
     is_active: bool
     daily_searches: int
     created_at: datetime
+    cv_filename: Optional[str] = None
+    profile_summary: Optional[str] = None
+    skills: Optional[str] = None
+    experience_level: Optional[str] = None
+    preferred_countries: Optional[str] = None
+    preferred_types: Optional[str] = None
+    onboarding_done: bool = False
 
     class Config:
         from_attributes = True
@@ -37,6 +44,15 @@ class UserOut(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    experience_level: Optional[str] = None
+    preferred_countries: Optional[str] = None
+    preferred_types: Optional[str] = None
+    skills: Optional[str] = None
+    onboarding_done: Optional[bool] = None
 
 
 class Token(BaseModel):

@@ -51,6 +51,12 @@ class User(Base):
     skills = Column(Text, nullable=True)
     cv_filename = Column(String(255), nullable=True)
 
+    # Extended profile
+    experience_level = Column(String(50), nullable=True)   # beginner/junior/mid/senior
+    preferred_countries = Column(Text, nullable=True)       # comma-separated
+    preferred_types = Column(Text, nullable=True)           # comma-separated opp types
+    onboarding_done = Column(Boolean, default=False)
+
     saved = relationship("SavedOpportunity", back_populates="user", cascade="all, delete")
     searches = relationship("SearchHistory", back_populates="user", cascade="all, delete")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete")
@@ -128,6 +134,7 @@ class UserOpportunity(Base):
     status = Column(String(50), default="new")
     tags = Column(Text)
     ai_analysis = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="user_opportunities")

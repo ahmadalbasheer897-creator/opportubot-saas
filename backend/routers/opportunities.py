@@ -47,6 +47,7 @@ def list_opportunities(
             "score": o.score,
             "status": o.status,
             "tags": o.tags,
+            "notes": o.notes,
             "created_at": o.created_at.isoformat() if o.created_at else None,
         }
         for o in items
@@ -212,6 +213,43 @@ async def interview_prep(
         "language": language,
         "total": len(questions),
     }
+
+
+@router.patch("/{opp_id}/notes")
+def update_notes(
+    opp_id: int,
+    notes: str = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save personal notes on an opportunity."""
+    opp = db.query(UserOpportunity).filter(
+        UserOpportunity.id == opp_id,
+        UserOpportunity.user_id == current_user.id,
+    ).first()
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    opp.notes = notes
+    db.commit()
+    return {"id": opp_id, "notes": notes}
+
+
+@router.delete("/{opp_id}")
+def delete_opportunity(
+    opp_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete an opportunity from user's pipeline."""
+    opp = db.query(UserOpportunity).filter(
+        UserOpportunity.id == opp_id,
+        UserOpportunity.user_id == current_user.id,
+    ).first()
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    db.delete(opp)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/history")

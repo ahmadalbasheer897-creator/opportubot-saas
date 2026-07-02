@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { makeTr } from "./translations"
+import Onboarding from "./Onboarding"
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
@@ -112,6 +113,11 @@ export default function Dashboard({ navigate, logout, user }) {
   const [clModal,        setClModal]        = useState(null)   // {oppId, oppTitle, text, lang, loading}
   const [ipModal,        setIpModal]        = useState(null)   // {oppId, oppTitle, questions, lang, loading}
   const [lang,           setLang]           = useState(() => localStorage.getItem("ob_lang") || "en")
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [viewMode,       setViewMode]       = useState("list") // "list" | "kanban"
+  const [noteInputs,     setNoteInputs]     = useState({})
+  const [showProfile,    setShowProfile]    = useState(false)
+  const [profileEdit,    setProfileEdit]    = useState({})
 
 
   const token   = localStorage.getItem("ob_token")
@@ -128,6 +134,10 @@ export default function Dashboard({ navigate, logout, user }) {
       ])
       setStats(s)
       setProfile(p && Object.keys(p).length > 0 ? p : null)
+      // Show onboarding for new users who haven't completed it
+      if (p && p.onboarding_done === false && !localStorage.getItem("ob_onboarding_skipped")) {
+        setShowOnboarding(true)
+      }
     } catch (e) { console.error("loadAll:", e) }
     await loadOpps()
     setLoading(false)
@@ -222,6 +232,54 @@ export default function Dashboard({ navigate, logout, user }) {
     } else {
       setGiftMsg(data.detail || "Invalid or expired code")
     }
+  }
+
+  // Deadline countdown helper
+  const deadlineBadge = (deadline) => {
+    if (!deadline || deadline === "Not found") return null
+    const dl = new Date(deadline)
+    if (isNaN(dl)) return <span style={{ fontSize: 11, color: COLORS.orange }}>⏰ {deadline}</span>
+    const days = Math.ceil((dl - new Date()) / 86400000)
+    if (days < 0)  return <span style={{ fontSize: 11, color: COLORS.red,    fontWeight: 700 }}>⛔ Expired</span>
+    if (days === 0) return <span style={{ fontSize: 11, color: COLORS.red,   fontWeight: 700 }}>⏰ Today!</span>
+    if (days <= 7)  return <span style={{ fontSize: 11, color: COLORS.red,   fontWeight: 700 }}>⏰ {days}d left</span>
+    if (days <= 30) return <span style={{ fontSize: 11, color: COLORS.orange, fontWeight: 600 }}>⏰ {days}d left</span>
+    return <span style={{ fontSize: 11, color: "#888" }}>⏰ {days}d left</span>
+  }
+
+  const saveNote = async (oppId) => {
+    const notes = noteInputs[oppId] ?? ""
+    await fetch(`${API}/opportunities/${oppId}/notes?notes=${encodeURIComponent(notes)}`, {
+      method: "PATCH", headers,
+    })
+  }
+
+  const deleteOpp = async (oppId, e) => {
+    e.stopPropagation()
+    if (!confirm("Remove this opportunity?")) return
+    await fetch(`${API}/opportunities/${oppId}`, { method: "DELETE", headers })
+    loadOpps()
+  }
+
+  const exportCSV = () => {
+    const cols = ["title","type","score","status","country","deadline","url"]
+    const rows = [cols.join(","), ...filteredOpps.map(o =>
+      cols.map(c => `"${String(o[c] || "").replace(/"/g, "'")}"` ).join(",")
+    )]
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(blob)
+    a.download = "opportunities.csv"
+    a.click()
+  }
+
+  const saveProfile = async () => {
+    await fetch(API + "/profile", {
+      method: "PUT", headers,
+      body: JSON.stringify(profileEdit),
+    })
+    setShowProfile(false)
+    loadAll()
   }
 
   const updateStatus = async (oppId, status, e) => {
@@ -321,8 +379,128 @@ export default function Dashboard({ navigate, logout, user }) {
     return true
   })
 
+  // ── Kanban renderer ───────────────────────────────────────────────────────
+  const KANBAN_COLS = [
+    { key: "new",      label: "New",        color: "#1565C0" },
+    { key: "analyzed", label: "Analyzed",   color: "#6A1B9A" },
+    { key: "applied",  label: "Applied",    color: "#E65100" },
+    { key: "accepted", label: "Accepted",   color: "#2E7D32" },
+    { key: "rejected", label: "Rejected",   color: "#C62828" },
+  ]
+
+  const renderKanban = () => (
+    <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+      {KANBAN_COLS.map(col => {
+        const colOpps = filteredOpps.filter(o => (o.status || "new") === col.key)
+        return (
+          <div key={col.key} style={{ minWidth: 200, flex: "0 0 220px" }}>
+            <div style={{
+              fontWeight: 700, fontSize: 12, color: col.color, marginBottom: 8,
+              display: "flex", justifyContent: "space-between",
+            }}>
+              <span>{col.label}</span>
+              <span style={{ background: col.color + "22", color: col.color, borderRadius: 10, padding: "1px 8px" }}>
+                {colOpps.length}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {colOpps.map(opp => (
+                <div key={opp.id} style={{
+                  background: "white", borderRadius: 10, padding: "10px 12px",
+                  boxShadow: "0 1px 6px rgba(0,0,0,0.07)", borderLeft: "3px solid " + col.color,
+                  cursor: "pointer",
+                }} onClick={() => { setViewMode("list"); setExpanded(opp.id) }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.dark, marginBottom: 4, lineHeight: 1.4 }}>
+                    {opp.title?.slice(0, 60)}{(opp.title?.length > 60) ? "…" : ""}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={S.scorePill(opp.score)}>{opp.score}%</span>
+                    {deadlineBadge(opp.deadline)}
+                  </div>
+                </div>
+              ))}
+              {colOpps.length === 0 && (
+                <div style={{ fontSize: 12, color: "#ccc", textAlign: "center", padding: "20px 0" }}>Empty</div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div style={{ ...S.page, direction: isAr ? "rtl" : "ltr" }}>
+
+      {/* ── Onboarding Wizard ────────────────────────────────── */}
+      {showOnboarding && (
+        <Onboarding onComplete={() => {
+          setShowOnboarding(false)
+          localStorage.setItem("ob_onboarding_skipped", "1")
+          loadAll()
+        }} />
+      )}
+
+      {/* ── Profile Modal ─────────────────────────────────────── */}
+      {showProfile && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20,
+        }} onClick={() => setShowProfile(false)}>
+          <div style={{
+            background: "white", borderRadius: 16, padding: 28, maxWidth: 480, width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxHeight: "85vh", overflowY: "auto",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>👤 My Profile</div>
+            {profile?.cv_filename && (
+              <div style={{ fontSize: 12, color: COLORS.green, marginBottom: 16 }}>
+                ✅ CV on file: {profile.cv_filename}
+              </div>
+            )}
+            {[
+              { label: "Name", key: "name", type: "text", placeholder: "Your full name" },
+              { label: "Skills (comma-separated)", key: "skills", type: "text", placeholder: "React, Python, Marketing..." },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>{f.label}</div>
+                <input type={f.type} placeholder={f.placeholder}
+                  value={profileEdit[f.key] || ""}
+                  onChange={e => setProfileEdit(p => ({ ...p, [f.key]: e.target.value }))}
+                  style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            ))}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Experience Level</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {["Beginner","Junior","Mid-level","Senior"].map(l => (
+                  <div key={l} onClick={() => setProfileEdit(p => ({ ...p, experience_level: l }))}
+                    style={{ padding: "5px 14px", borderRadius: 16, fontSize: 13, cursor: "pointer",
+                      border: "1.5px solid " + (profileEdit.experience_level === l ? "#1565C0" : "#ddd"),
+                      background: profileEdit.experience_level === l ? "#E3F2FD" : "white",
+                      color: profileEdit.experience_level === l ? "#1565C0" : "#555", fontWeight: profileEdit.experience_level === l ? 700 : 400 }}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>Preferred Countries</div>
+              <input placeholder="Iraq, Germany, USA..."
+                value={profileEdit.preferred_countries || ""}
+                onChange={e => setProfileEdit(p => ({ ...p, preferred_countries: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button onClick={saveProfile}
+                style={{ ...S.btn(COLORS.blue), flex: 1 }}>Save Profile</button>
+              <button onClick={() => setShowProfile(false)}
+                style={{ ...S.btn("#eee", "#555"), flex: 1 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ───────────────────────────────────────────── */}
       <div style={S.header}>
@@ -342,6 +520,12 @@ export default function Dashboard({ navigate, logout, user }) {
             title={isAr ? "Switch to English" : "التبديل إلى العربية"}
           >
             {isAr ? "EN" : "عربي"}
+          </button>
+          <button
+            style={{ ...S.btn("rgba(255,255,255,0.15)", "white"), border: "1px solid rgba(255,255,255,0.3)", fontSize: 12 }}
+            onClick={() => { setProfileEdit({ name: profile?.name || "", experience_level: profile?.experience_level || "", preferred_countries: profile?.preferred_countries || "", preferred_types: profile?.preferred_types || "", skills: profile?.skills || "" }); setShowProfile(true) }}
+          >
+            👤 Profile
           </button>
           {user?.is_owner && (
             <button style={S.btn("#283593")} onClick={() => navigate("admin")}>
@@ -494,8 +678,31 @@ export default function Dashboard({ navigate, logout, user }) {
             display: "flex", justifyContent: "space-between",
             alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12,
           }}>
-            <div style={{ ...S.cardTitle, marginBottom: 0 }}>
-              {t("opportunities")} ({filteredOpps.length}{filteredOpps.length !== opps.length ? ` / ${opps.length}` : ""})
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ ...S.cardTitle, marginBottom: 0 }}>
+                {t("opportunities")} ({filteredOpps.length}{filteredOpps.length !== opps.length ? ` / ${opps.length}` : ""})
+              </div>
+              {/* View toggle */}
+              <div style={{ display: "flex", background: "#f0f2f5", borderRadius: 8, padding: 2 }}>
+                {["list","kanban"].map(m => (
+                  <button key={m}
+                    onClick={() => setViewMode(m)}
+                    style={{ padding: "4px 10px", fontSize: 12, border: "none", borderRadius: 6, cursor: "pointer",
+                      background: viewMode === m ? "white" : "transparent",
+                      fontWeight: viewMode === m ? 700 : 400, color: viewMode === m ? COLORS.dark : "#888",
+                      boxShadow: viewMode === m ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                    }}>
+                    {m === "list" ? "☰ List" : "⊞ Kanban"}
+                  </button>
+                ))}
+              </div>
+              {/* Export CSV */}
+              {filteredOpps.length > 0 && (
+                <button onClick={exportCSV}
+                  style={{ ...S.btn("#37474F"), fontSize: 12, padding: "5px 12px" }}>
+                  ↓ CSV
+                </button>
+              )}
             </div>
             {/* Filters */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -578,7 +785,7 @@ export default function Dashboard({ navigate, logout, user }) {
             </div>
           </div>
 
-          {filteredOpps.length === 0 ? (
+          {viewMode === "kanban" ? renderKanban() : filteredOpps.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>🔍</div>
               <div style={{ fontSize: 15, marginBottom: 6, color: "#999" }}>
@@ -615,11 +822,7 @@ export default function Dashboard({ navigate, logout, user }) {
                       {opp.country && opp.country !== "Not found" && (
                         <span style={{ fontSize: 11, color: "#666" }}>🌍 {opp.country}</span>
                       )}
-                      {opp.deadline && opp.deadline !== "Not found" && (
-                        <span style={{ fontSize: 11, color: COLORS.orange }}>
-                          ⏰ {opp.deadline}
-                        </span>
-                      )}
+                      {deadlineBadge(opp.deadline)}
                       {opp.status === "applied" && (
                         <span style={S.tag(COLORS.orange)}>Applied</span>
                       )}
@@ -713,6 +916,28 @@ export default function Dashboard({ navigate, logout, user }) {
                       >
                         {t("interviewPrep")}
                       </button>
+                      <button
+                        style={{ ...S.btn(COLORS.red), fontSize: 12 }}
+                        onClick={e => deleteOpp(opp.id, e)}
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                    {/* Notes */}
+                    <div style={{ marginTop: 10 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 4 }}>📝 My Notes</div>
+                      <textarea
+                        rows={2}
+                        placeholder="Add personal notes (saved automatically on blur)..."
+                        value={noteInputs[opp.id] ?? (opp.notes || "")}
+                        onChange={e => setNoteInputs(n => ({ ...n, [opp.id]: e.target.value }))}
+                        onBlur={() => saveNote(opp.id)}
+                        style={{
+                          width: "100%", padding: "8px 10px", border: "1px solid #ddd",
+                          borderRadius: 8, fontSize: 13, resize: "vertical", outline: "none",
+                          fontFamily: "inherit", boxSizing: "border-box",
+                        }}
+                      />
                     </div>
                   </div>
                 )}
