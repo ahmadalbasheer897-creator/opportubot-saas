@@ -179,26 +179,49 @@ async def run_pipeline(
     current_user.daily_searches += 1
     db.commit()
 
-    # Send email notification with top results (non-blocking)
+    # Send email notification (non-blocking)
     if saved > 0 and current_user.email_verified:
         import asyncio
-        from services.email_service import send_pipeline_results_email
-        top_opps = (
-            db.query(UserOpportunity)
-            .filter(UserOpportunity.user_id == current_user.id)
-            .order_by(UserOpportunity.score.desc())
-            .limit(5)
-            .all()
-        )
-        opps_data = [
-            {"title": o.title, "score": o.score, "url": o.url or "#"}
-            for o in top_opps
-        ]
-        asyncio.create_task(
-            send_pipeline_results_email(
-                current_user.email, current_user.name, opps_data, saved
+        from services.email_service import send_pipeline_results_email, send_high_score_alert_email
+
+        # Check for high-score (≥80) opportunities from this run
+        high_score_opps = [s for s in scores if s["score"] >= 80] if new_opps else []
+
+        if high_score_opps:
+            # Get full opp data for high-score ones
+            high_opp_ids = {s["id"] for s in high_score_opps}
+            high_opps_db = db.query(UserOpportunity).filter(
+                UserOpportunity.id.in_(high_opp_ids)
+            ).all()
+            high_opps_data = [
+                {"title": o.title, "score": o.score, "url": o.url or "#",
+                 "type": o.type.value if hasattr(o.type, "value") else str(o.type),
+                 "country": o.country or ""}
+                for o in high_opps_db
+            ]
+            asyncio.create_task(
+                send_high_score_alert_email(
+                    current_user.email, current_user.name, high_opps_data
+                )
             )
-        )
+        else:
+            # Regular pipeline results email (only top 5)
+            top_opps = (
+                db.query(UserOpportunity)
+                .filter(UserOpportunity.user_id == current_user.id)
+                .order_by(UserOpportunity.score.desc())
+                .limit(5)
+                .all()
+            )
+            opps_data = [
+                {"title": o.title, "score": o.score, "url": o.url or "#"}
+                for o in top_opps
+            ]
+            asyncio.create_task(
+                send_pipeline_results_email(
+                    current_user.email, current_user.name, opps_data, saved
+                )
+            )
 
     return {
         "message": f"Pipeline completed. Found {saved} new opportunities with AI scoring.",

@@ -198,6 +198,92 @@ async def send_pipeline_results_email(
     return await _send_email(to_email, subject, html)
 
 
+# ── High Score Alert Email ───────────────────────────────────────────────────
+
+async def send_high_score_alert_email(
+    to_email: str,
+    name: str,
+    opportunities: List[dict],
+) -> bool:
+    """Send alert email when high-score (≥80) opportunities are found."""
+    if not opportunities:
+        return False
+
+    rows = ""
+    for opp in opportunities[:5]:
+        score = opp.get("score", 0)
+        rows += f"""
+        <tr style="border-bottom:1px solid #334155;">
+          <td style="padding:12px 8px;">
+            <span style="background:#7c3aed22; color:#a78bfa; font-size:10px;
+                         padding:2px 7px; border-radius:10px; text-transform:uppercase;">
+              {opp.get('type', 'opportunity')}
+            </span>
+            <div style="color:#e2e8f0; font-weight:bold; margin-top:5px; font-size:14px;">
+              {opp.get('title','Untitled')[:65]}
+            </div>
+            {f'<div style="color:#94a3b8; font-size:11px; margin-top:3px;">🌍 {opp.get("country","")}</div>' if opp.get('country') and opp.get('country') != 'Not found' else ''}
+          </td>
+          <td style="padding:12px 8px; text-align:center; white-space:nowrap;">
+            <span style="color:#22c55e; font-weight:bold; font-size:18px;">{score}%</span>
+          </td>
+          <td style="padding:12px 8px; text-align:center;">
+            <a href="{opp.get('url','#')}"
+               style="background:#22c55e; color:#fff; padding:6px 14px; border-radius:6px;
+                      text-decoration:none; font-size:12px; font-weight:bold;">Apply →</a>
+          </td>
+        </tr>"""
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; background:#0f172a; color:#e2e8f0; padding:40px; margin:0;">
+  <div style="max-width:620px; margin:auto; background:#1e293b; border-radius:14px; overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#166534,#15803d); padding:28px 32px;">
+      <div style="font-size:24px; font-weight:bold; color:white;">🎯 High Match Alert!</div>
+      <div style="font-size:13px; color:#bbf7d0; margin-top:6px;">
+        {len(opportunities)} excellent opportunit{'y' if len(opportunities)==1 else 'ies'} found for you
+      </div>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin-top:0;">Hi <strong>{name}</strong> 👋</p>
+      <p style="color:#94a3b8; font-size:14px;">
+        Great news! Your AI pipeline found opportunit{'y' if len(opportunities)==1 else 'ies'} with
+        <strong style="color:#22c55e;">80%+ match score</strong> for your profile. Don't miss them!
+      </p>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f172a; color:#64748b; font-size:11px; text-transform:uppercase;">
+            <th style="padding:10px 8px; text-align:left;">Opportunity</th>
+            <th style="padding:10px 8px; text-align:center; width:60px;">Match</th>
+            <th style="padding:10px 8px; text-align:center; width:80px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
+      <div style="margin-top:24px; text-align:center;">
+        <a href="{settings.FRONTEND_URL}"
+           style="display:inline-block; background:#22c55e; color:#fff; padding:14px 32px;
+                  border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px;">
+          View in Dashboard →
+        </a>
+      </div>
+    </div>
+    <div style="padding:16px 32px; background:#0f172a; text-align:center;">
+      <p style="color:#475569; font-size:11px; margin:0;">
+        OpportuBot · AI-powered opportunity tracker ·
+        <a href="{settings.FRONTEND_URL}" style="color:#7c3aed;">Visit site</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+"""
+    subject = f"🎯 {len(opportunities)} High-Match Opportunit{'y' if len(opportunities)==1 else 'ies'} Found! (80%+)"
+    return await _send_email(to_email, subject, html)
+
+
 # ── Daily Digest Email ───────────────────────────────────────────────────────
 
 async def send_daily_digest_email(
