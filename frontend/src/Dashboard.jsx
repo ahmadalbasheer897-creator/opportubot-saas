@@ -4,41 +4,30 @@ import Onboarding from "./Onboarding"
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
-// ─── Dark Theme Palette ───────────────────────────────────────────
-const C = {
-  bg:       "#080B10",
-  sidebar:  "#0F131E",
-  card:     "rgba(255,255,255,0.02)",
-  border:   "rgba(255,255,255,0.07)",
-  text:     "#F8FAFC",
-  muted:    "#94a3b8",
-  dim:      "#64748b",
-  blue:     "#3b82f6",
-  purple:   "#8b5cf6",
-  green:    "#10b981",
-  orange:   "#f97316",
-  red:      "#ef4444",
-  amber:    "#f59e0b",
-  cyan:     "#22d3ee",
-  grad1:    "linear-gradient(135deg,#7c3aed,#4f46e5)",
-  grad2:    "linear-gradient(135deg,#6d28d9,#7c3aed)",
-  grad3:    "linear-gradient(135deg,#5b21b6,#6d28d9)",
+// ─── Theme Palettes ───────────────────────────────────────────────
+const PALETTES = {
+  dark: {
+    bg:"#080B10", sidebar:"#0F131E", card:"rgba(255,255,255,0.02)",
+    border:"rgba(255,255,255,0.07)", text:"#F8FAFC", muted:"#94a3b8", dim:"#64748b",
+    blue:"#3b82f6", purple:"#8b5cf6", green:"#10b981", orange:"#f97316",
+    red:"#ef4444", amber:"#f59e0b", cyan:"#22d3ee",
+    grad1:"linear-gradient(135deg,#7c3aed,#4f46e5)",
+    grad2:"linear-gradient(135deg,#6d28d9,#7c3aed)",
+    grad3:"linear-gradient(135deg,#5b21b6,#6d28d9)",
+    inputBg:"rgba(255,255,255,0.03)", selectBg:"#0F131E", modalBg:"#0F131E", isDark:true,
+  },
+  light: {
+    bg:"#f0f4f8", sidebar:"#ffffff", card:"rgba(0,0,0,0.03)",
+    border:"rgba(0,0,0,0.09)", text:"#0f172a", muted:"#64748b", dim:"#94a3b8",
+    blue:"#2563eb", purple:"#7c3aed", green:"#059669", orange:"#ea580c",
+    red:"#dc2626", amber:"#d97706", cyan:"#0891b2",
+    grad1:"linear-gradient(135deg,#6d28d9,#4338ca)",
+    grad2:"linear-gradient(135deg,#5b21b6,#6d28d9)",
+    grad3:"linear-gradient(135deg,#4c1d95,#5b21b6)",
+    inputBg:"rgba(0,0,0,0.04)", selectBg:"#f0f4f8", modalBg:"#ffffff", isDark:false,
+  },
 }
 const PLAN_COLORS = { free:"#64748b", pro:"#3b82f6", gift:"#8b5cf6", owner:"#ef4444" }
-
-// ─── Shared style helpers ─────────────────────────────────────────
-const darkInput = {
-  padding:"9px 12px", background:"rgba(255,255,255,0.03)",
-  border:"1px solid "+C.border, borderRadius:8, color:C.text,
-  fontSize:13, outline:"none", boxSizing:"border-box", width:"100%",
-}
-const darkSelect = {
-  ...darkInput, background:"#0F131E", cursor:"pointer",
-}
-const darkBtn = (bg, fg="white") => ({
-  padding:"9px 16px", background:bg, color:fg, border:"none",
-  borderRadius:8, fontWeight:600, cursor:"pointer", fontSize:13,
-})
 
 const OPP_TYPES = ["all","job","scholarship","internship","conference","training"]
 const STATUSES  = ["all","new","analyzed","applied","accepted","rejected"]
@@ -79,9 +68,27 @@ export default function Dashboard({ navigate, logout, user }) {
   const [customInput,    setCustomInput]    = useState("")
   const [isMobile,       setIsMobile]       = useState(() => typeof window !== "undefined" ? window.innerWidth < 1024 : false)
   const [sidebarOpen,    setSidebarOpen]    = useState(false)
+  // ── Theme state ────────────────────────────────────────────────
+  const [theme,          setTheme]          = useState(()=>localStorage.getItem("ob_theme")||"dark")
+  const [customColors,   setCustomColors]   = useState(()=>{try{return JSON.parse(localStorage.getItem("ob_custom_colors")||"{}")}catch{return {}}})
+  const [showThemePicker,setShowThemePicker]= useState(false)
+  const [activePage,     setActivePage]     = useState("dashboard")
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization":"Bearer "+token, "Content-Type":"application/json" }
+
+  // ── Compute active palette ────────────────────────────────────
+  const sysIsDark = typeof window!=="undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches
+  const basePalette = theme==="auto" ? PALETTES[sysIsDark?"dark":"light"] : theme==="custom" ? PALETTES.dark : (PALETTES[theme]||PALETTES.dark)
+  const C = theme==="custom" ? {
+    ...basePalette,
+    ...(customColors.bg     ?{bg:customColors.bg}                                  :{}),
+    ...(customColors.sidebar?{sidebar:customColors.sidebar}                        :{}),
+    ...(customColors.accent ?{blue:customColors.accent,purple:customColors.accent} :{}),
+  } : basePalette
+  const darkInput  = {padding:"9px 12px",background:C.inputBg,border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",width:"100%"}
+  const darkSelect = {...darkInput,background:C.selectBg,cursor:"pointer"}
+  const darkBtn    = (bg,fg="white")=>({padding:"9px 16px",background:bg,color:fg,border:"none",borderRadius:8,fontWeight:600,cursor:"pointer",fontSize:13})
 
   useEffect(() => {
     loadAll()
@@ -360,7 +367,7 @@ export default function Dashboard({ navigate, logout, user }) {
               <div style={{display:"flex",gap:6,alignItems:"center"}}>
                 <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
                   style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:6,color:C.text,fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none"}}>
-                  {["new","analyzed","applied","accepted","rejected","archived"].map(sv=><option key={sv} value={sv} style={{background:"#0F131E"}}>{sv.charAt(0).toUpperCase()+sv.slice(1)}</option>)}
+                  {["new","analyzed","applied","accepted","rejected","archived"].map(sv=><option key={sv} value={sv} style={{background:C.selectBg}}>{sv.charAt(0).toUpperCase()+sv.slice(1)}</option>)}
                 </select>
               </div>
             </div>
@@ -392,7 +399,7 @@ export default function Dashboard({ navigate, logout, user }) {
           <div style={{display:"flex",alignItems:"center",gap:8}} onClick={e=>e.stopPropagation()}>
             <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
               style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:12,padding:"5px 8px",cursor:"pointer",outline:"none"}}>
-              {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:"#0F131E"}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
             </select>
             <button onClick={e=>deleteOpp(opp.id,e)} style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:8,width:30,height:30,color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🗑</button>
           </div>
@@ -433,8 +440,8 @@ export default function Dashboard({ navigate, logout, user }) {
     <div style={{marginBottom:12}}>
       <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:4}}>{label}</div>
       <select value={profileEdit[key]||""} onChange={e=>setProfileEdit(p=>({...p,[key]:e.target.value}))} style={darkSelect}>
-        <option value="" style={{background:"#0F131E"}}>— Select —</option>
-        {opts.map(o=><option key={o} value={o} style={{background:"#0F131E"}}>{o}</option>)}
+        <option value="" style={{background:C.selectBg}}>— Select —</option>
+        {opts.map(o=><option key={o} value={o} style={{background:C.selectBg}}>{o}</option>)}
       </select>
     </div>
   )
@@ -486,18 +493,52 @@ export default function Dashboard({ navigate, logout, user }) {
         </div>
 
         {/* Nav links */}
-        <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:20}}>
+        <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:8}}>
           {[
-            {icon:"🏠",label:t("opportunities"),onClick:()=>setSidebarOpen(false),active:true},
-            {icon:"👤",label:isAr?"الملف الشخصي":"Profile",onClick:()=>{setProfileEdit({name:profile?.name||"",phone:profile?.phone||"",nationality:profile?.nationality||"",country_of_residence:profile?.country_of_residence||"",date_of_birth:profile?.date_of_birth||"",gender:profile?.gender||"",linkedin_url:profile?.linkedin_url||"",portfolio_url:profile?.portfolio_url||"",education_level:profile?.education_level||"",field_of_study:profile?.field_of_study||"",university:profile?.university||"",gpa:profile?.gpa||"",graduation_year:profile?.graduation_year||"",current_occupation:profile?.current_occupation||"",skills:profile?.skills||"",experience_level:profile?.experience_level||"",languages:profile?.languages||"",career_goals:profile?.career_goals||"",preferred_countries:profile?.preferred_countries||"",preferred_types:profile?.preferred_types||""});setSidebarOpen(false);setShowProfile(true)}},
-            {icon:"🌐",label:(isAr?"مصادر البحث":"Sources")+((selectedDomains.length+customSources.length)>0?` (${selectedDomains.length+customSources.length})`:""),onClick:()=>{setSidebarOpen(false);setShowSources(true)}},
-            ...(user?.is_owner?[{icon:"⚙️",label:t("adminPanel"),onClick:()=>{setSidebarOpen(false);navigate("admin")}}]:[]),
-          ].map(item=>(
-            <button key={item.label} onClick={item.onClick} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:item.active?"rgba(59,130,246,0.1)":"transparent",color:item.active?C.blue:C.muted,border:"none",borderRadius:8,fontSize:13,fontWeight:item.active?700:500,cursor:"pointer",textAlign:isAr?"right":"left",width:"100%"}}>
-              <span style={{fontSize:15}}>{item.icon}</span>{item.label}
-            </button>
-          ))}
+            {icon:"🏠", label:isAr?"الرئيسية":"Dashboard",              key:"dashboard"},
+            {icon:"📋", label:isAr?"طلباتي":"My Applications",           key:"applications"},
+            {icon:"🔍", label:isAr?"بحث الفرص":"Search Opportunities",   key:"search"},
+            {icon:"👤", label:isAr?"الملف الشخصي":"My Profile",          key:"profile"},
+            {icon:"📅", label:isAr?"التقويم":"Calendar",                 key:"calendar", soon:true},
+            {icon:"✉️", label:isAr?"الرسائل":"Messages",                 key:"messages", soon:true},
+            {icon:"❓", label:isAr?"المساعدة":"Help Center",             key:"help",     soon:true},
+            ...(user?.is_owner?[{icon:"⚙️",label:t("adminPanel"),key:"admin"}]:[]),
+          ].map(item=>{
+            const isActive = activePage===item.key
+            const handleNavClick = () => {
+              if(item.soon) return
+              setSidebarOpen(false)
+              if(item.key==="profile"){
+                setProfileEdit({name:profile?.name||"",phone:profile?.phone||"",nationality:profile?.nationality||"",country_of_residence:profile?.country_of_residence||"",date_of_birth:profile?.date_of_birth||"",gender:profile?.gender||"",linkedin_url:profile?.linkedin_url||"",portfolio_url:profile?.portfolio_url||"",education_level:profile?.education_level||"",field_of_study:profile?.field_of_study||"",university:profile?.university||"",gpa:profile?.gpa||"",graduation_year:profile?.graduation_year||"",current_occupation:profile?.current_occupation||"",skills:profile?.skills||"",experience_level:profile?.experience_level||"",languages:profile?.languages||"",career_goals:profile?.career_goals||"",preferred_countries:profile?.preferred_countries||"",preferred_types:profile?.preferred_types||""})
+                setShowProfile(true); return
+              }
+              if(item.key==="search"){ setShowSources(true); return }
+              if(item.key==="admin"){ navigate("admin"); return }
+              if(item.key==="applications"){ setFilterStatus("applied"); setActivePage("applications"); return }
+              if(item.key==="dashboard"){ setFilterStatus("all"); setActivePage("dashboard"); return }
+              setActivePage(item.key)
+            }
+            return (
+              <button key={item.key} onClick={handleNavClick} style={{
+                display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                background:isActive?"rgba(59,130,246,0.1)":"transparent",
+                color:isActive?C.blue:C.muted,
+                border:"none",borderRadius:10,fontSize:13,
+                fontWeight:isActive?700:500,cursor:item.soon?"default":"pointer",
+                textAlign:isAr?"right":"left",width:"100%",
+                opacity:item.soon?0.5:1,position:"relative",
+                transition:"background 0.15s,color 0.15s",
+              }}>
+                {isActive&&<div style={{position:"absolute",left:isAr?"auto":0,right:isAr?0:"auto",top:"50%",transform:"translateY(-50%)",width:3,height:20,background:C.blue,borderRadius:"0 2px 2px 0"}}/>}
+                <span style={{fontSize:15,width:22,textAlign:"center",flexShrink:0}}>{item.icon}</span>
+                <span style={{flex:1}}>{item.label}</span>
+                {item.soon&&<span style={{fontSize:9,padding:"2px 5px",borderRadius:6,background:"rgba(99,102,241,0.15)",color:"#818cf8",fontWeight:700}}>Soon</span>}
+              </button>
+            )
+          })}
         </div>
+        <div style={{borderTop:"1px solid "+C.border,margin:"4px 0 12px"}}/>
+
 
         {/* Sidebar widgets */}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:12}}>
@@ -549,7 +590,13 @@ export default function Dashboard({ navigate, logout, user }) {
         </div>
 
         {/* Footer */}
-        <div style={{marginTop:"auto",display:"flex",flexDirection:"column",gap:8,paddingTop:14,borderTop:"1px solid "+C.border}}>
+        <div style={{marginTop:"auto",display:"flex",flexDirection:"column",gap:6,paddingTop:14,borderTop:"1px solid "+C.border}}>
+          {/* Theme picker */}
+          <button onClick={()=>setShowThemePicker(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:C.card,border:"1px solid "+C.border,borderRadius:8,color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",width:"100%"}}>
+            <span>{theme==="dark"?"🌙":theme==="light"?"☀️":theme==="auto"?"🖥️":"🎨"}</span>
+            <span style={{flex:1,textAlign:"left"}}>{theme==="dark"?"Dark Mode":theme==="light"?"Light Mode":theme==="auto"?"Auto (System)":"Custom"}</span>
+            <span style={{fontSize:10,color:C.dim}}>▸</span>
+          </button>
           {!isMobile&&<button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"7px 12px",background:C.card,border:"1px solid "+C.border,borderRadius:8,color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",width:"100%"}} onClick={toggleLang}>🌐 {isAr?"English":"عربي"}</button>}
           <button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"7px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:8,color:"#f87171",fontSize:12,fontWeight:600,cursor:"pointer",width:"100%"}} onClick={logout}>🚪 {t("logout")}</button>
         </div>
@@ -631,20 +678,20 @@ export default function Dashboard({ navigate, logout, user }) {
             <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
               <input style={{...darkInput,flex:"1 1 160px",padding:"8px 12px"}} placeholder={t("searchPlaceholder")} value={searchText} onChange={e=>setSearchText(e.target.value)}/>
               <select style={{...darkSelect,flex:"0 0 auto"}} value={filterType} onChange={e=>setFilterType(e.target.value)}>
-                {OPP_TYPES.map(tp=><option key={tp} value={tp} style={{background:"#0F131E"}}>{tp==="all"?t("allTypes"):t(tp+"s")||(tp.charAt(0).toUpperCase()+tp.slice(1)+"s")}</option>)}
+                {OPP_TYPES.map(tp=><option key={tp} value={tp} style={{background:C.selectBg}}>{tp==="all"?t("allTypes"):t(tp+"s")||(tp.charAt(0).toUpperCase()+tp.slice(1)+"s")}</option>)}
               </select>
               <select style={{...darkSelect,flex:"0 0 auto"}} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
-                {STATUSES.map(s=><option key={s} value={s} style={{background:"#0F131E"}}>{s==="all"?t("allStatus"):s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                {STATUSES.map(s=><option key={s} value={s} style={{background:C.selectBg}}>{s==="all"?t("allStatus"):s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
               </select>
               {uniqueCountries.length>0&&<select style={{...darkSelect,flex:"0 0 auto"}} value={filterCountry} onChange={e=>setFilterCountry(e.target.value)}>
-                <option value="all" style={{background:"#0F131E"}}>{t("allCountries")}</option>
-                {uniqueCountries.map(c=><option key={c} value={c} style={{background:"#0F131E"}}>{c}</option>)}
+                <option value="all" style={{background:C.selectBg}}>{t("allCountries")}</option>
+                {uniqueCountries.map(c=><option key={c} value={c} style={{background:C.selectBg}}>{c}</option>)}
               </select>}
               <select style={{...darkSelect,flex:"0 0 auto"}} value={filterDeadline} onChange={e=>setFilterDeadline(e.target.value)}>
-                <option value="all" style={{background:"#0F131E"}}>{t("anyDeadline")}</option>
-                <option value="week" style={{background:"#0F131E"}}>{t("dueThisWeek")}</option>
-                <option value="month" style={{background:"#0F131E"}}>{t("dueThisMonth")}</option>
-                <option value="overdue" style={{background:"#0F131E"}}>{t("overdue")}</option>
+                <option value="all" style={{background:C.selectBg}}>{t("anyDeadline")}</option>
+                <option value="week" style={{background:C.selectBg}}>{t("dueThisWeek")}</option>
+                <option value="month" style={{background:C.selectBg}}>{t("dueThisMonth")}</option>
+                <option value="overdue" style={{background:C.selectBg}}>{t("overdue")}</option>
               </select>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.04)",paddingTop:10}}>
@@ -686,7 +733,7 @@ export default function Dashboard({ navigate, logout, user }) {
       {showProfile&&(()=>{
         return(
           <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setShowProfile(false)}>
-            <div style={{background:"#0F131E",border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:600,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"90vh",overflowY:"auto",boxSizing:"border-box",color:C.text}} onClick={e=>e.stopPropagation()}>
+            <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:600,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"90vh",overflowY:"auto",boxSizing:"border-box",color:C.text}} onClick={e=>e.stopPropagation()}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                 <div style={{fontSize:17,fontWeight:800}}>👤 My Profile</div>
                 <button style={{background:"none",border:"none",color:C.muted,fontSize:18,cursor:"pointer"}} onClick={()=>setShowProfile(false)}>✕</button>
@@ -768,7 +815,7 @@ export default function Dashboard({ navigate, logout, user }) {
       {/* ════════════ SOURCES MODAL ═══════════════════════════════ */}
       {showSources&&(
         <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setShowSources(false)}>
-          <div style={{background:"#0F131E",border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:580,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:580,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:16,fontWeight:800}}>🌐 Search Sources</div>
               <button style={{background:"none",border:"none",color:C.muted,fontSize:18,cursor:"pointer"}} onClick={()=>setShowSources(false)}>✕</button>
@@ -820,7 +867,7 @@ export default function Dashboard({ navigate, logout, user }) {
       {/* ════════════ COVER LETTER MODAL ══════════════════════════ */}
       {clModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setClModal(null)}>
-          <div style={{background:"#0F131E",border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:680,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"85vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:680,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"85vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
               <div><div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{t("clTitle")}</div><div style={{fontSize:12,color:C.muted}}>{clModal.oppTitle} · {clModal.lang}</div></div>
               <div style={{display:"flex",gap:8}}>
@@ -831,9 +878,67 @@ export default function Dashboard({ navigate, logout, user }) {
             {clModal.loading ? <div style={{textAlign:"center",padding:"40px 0",color:C.muted}}><div style={{fontSize:36,marginBottom:12}}>✍️</div><div>{t("clLoading")}</div><div style={{fontSize:12,marginTop:6,color:C.dim}}>{t("clLoadingHint")}</div></div>
               : <pre style={{whiteSpace:"pre-wrap",fontFamily:"inherit",fontSize:14,lineHeight:1.7,color:"#cbd5e1",background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:16,margin:0,overflowY:"auto",maxHeight:"50vh"}}>{clModal.text}</pre>}
             {!clModal.loading&&<div style={{marginTop:14,display:"flex",gap:8}}>
-              <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:clModal.lang==="English"?C.purple:"rgba(255,255,255,0.05)",color:clModal.lang==="English"?"white":C.muted}} onClick={()=>openCoverLetter({id:clModal.oppId,title:clModal.oppTitle},"English")}>{t("english")}</button>
               <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:clModal.lang==="Arabic"?C.blue:"rgba(255,255,255,0.05)",color:clModal.lang==="Arabic"?"white":C.muted}} onClick={()=>openCoverLetter({id:clModal.oppId,title:clModal.oppTitle},"Arabic")}>{t("arabic")}</button>
             </div>}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════ THEME PICKER MODAL ══════════════════════════ */}
+      {showThemePicker&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10000,padding:16}} onClick={()=>setShowThemePicker(false)}>
+          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:22,padding:28,maxWidth:420,width:"100%",boxShadow:"0 25px 60px rgba(0,0,0,0.5)",color:C.text,boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:17,fontWeight:800}}>🎨 {isAr?"المظهر":"Theme"}</div>
+              <button style={{background:"none",border:"none",color:C.muted,fontSize:18,cursor:"pointer"}} onClick={()=>setShowThemePicker(false)}>✕</button>
+            </div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:20}}>{isAr?"اختر كيف يبدو التطبيق لك":"Choose how OpportuBot looks for you."}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+              {[
+                {key:"dark",  icon:"🌙", label:isAr?"داكن":"Dark",   desc:isAr?"مريح للعيون":"Easy on the eyes"},
+                {key:"light", icon:"☀️", label:isAr?"فاتح":"Light",  desc:isAr?"نظيف ومضيء":"Clean & bright"},
+                {key:"auto",  icon:"🖥️", label:isAr?"تلقائي":"Auto", desc:isAr?"يتبع النظام":"Follow system"},
+                {key:"custom",icon:"🎨", label:isAr?"مخصص":"Custom", desc:isAr?"ألوانك الخاصة":"Your own colors"},
+              ].map(opt=>(
+                <div key={opt.key} onClick={()=>{setTheme(opt.key);localStorage.setItem("ob_theme",opt.key)}} style={{
+                  padding:"14px 12px",borderRadius:14,cursor:"pointer",
+                  border:"2px solid "+(theme===opt.key?C.blue:C.border),
+                  background:theme===opt.key?"rgba(59,130,246,0.08)":C.card,
+                  transition:"border-color 0.15s,background 0.15s",
+                }}>
+                  <div style={{fontSize:24,marginBottom:8}}>{opt.icon}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>{opt.label}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{opt.desc}</div>
+                  {theme===opt.key&&<div style={{marginTop:8,width:20,height:3,borderRadius:2,background:C.blue}}/>}
+                </div>
+              ))}
+            </div>
+            {theme==="custom"&&(
+              <div style={{borderTop:"1px solid "+C.border,paddingTop:16,display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:0.5}}>{isAr?"تخصيص الألوان":"CUSTOMIZE COLORS"}</div>
+                {[
+                  {key:"bg",      label:isAr?"الخلفية":"Background",    default:"#080B10"},
+                  {key:"sidebar", label:isAr?"الشريط الجانبي":"Sidebar", default:"#0F131E"},
+                  {key:"accent",  label:isAr?"اللون الرئيسي":"Accent",  default:"#3b82f6"},
+                ].map(col=>(
+                  <div key={col.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:C.card,borderRadius:10,border:"1px solid "+C.border}}>
+                    <span style={{fontSize:13,color:C.text,fontWeight:500}}>{col.label}</span>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:26,height:26,borderRadius:6,background:customColors[col.key]||col.default,border:"1px solid "+C.border}}/>
+                      <input type="color" value={customColors[col.key]||col.default}
+                        onChange={e=>{const nc={...customColors,[col.key]:e.target.value};setCustomColors(nc);localStorage.setItem("ob_custom_colors",JSON.stringify(nc))}}
+                        style={{width:36,height:28,cursor:"pointer",border:"none",background:"transparent",padding:0,borderRadius:4}}/>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={()=>{setCustomColors({});localStorage.removeItem("ob_custom_colors")}} style={{fontSize:11,color:C.muted,background:"none",border:"1px dashed "+C.border,borderRadius:8,padding:"6px",cursor:"pointer"}}>
+                  {isAr?"إعادة تعيين الألوان":"Reset to defaults"}
+                </button>
+              </div>
+            )}
+            <button onClick={()=>setShowThemePicker(false)} style={{width:"100%",padding:"11px",background:C.blue,color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>
+              {isAr?"تم":"Done"}
+            </button>
           </div>
         </div>
       )}
@@ -841,7 +946,7 @@ export default function Dashboard({ navigate, logout, user }) {
       {/* ════════════ INTERVIEW PREP MODAL ════════════════════════ */}
       {ipModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setIpModal(null)}>
-          <div style={{background:"#0F131E",border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:720,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:720,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div><div style={{fontSize:15,fontWeight:700,color:C.cyan,marginBottom:4}}>{t("ipTitle")}</div><div style={{fontSize:12,color:C.muted}}>{ipModal.oppTitle} · {ipModal.lang}</div></div>
               <button style={{padding:"6px 12px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,color:"#f87171",fontSize:12,fontWeight:600,cursor:"pointer"}} onClick={()=>setIpModal(null)}>{t("close")}</button>
