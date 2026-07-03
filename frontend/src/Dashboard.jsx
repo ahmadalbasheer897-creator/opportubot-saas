@@ -74,7 +74,9 @@ export default function Dashboard({ navigate, logout, user }) {
   const [showThemePicker,setShowThemePicker]= useState(false)
   const [activePage,     setActivePage]     = useState("dashboard")
   const [showAddModal,   setShowAddModal]   = useState(false)
-  const [addForm,        setAddForm]        = useState({title:"",url:"",type:"job",country:"",deadline:"",notes:""})
+  const [addForm,        setAddForm]        = useState({query:"",type:"job",country:"",limit:10})
+  const [addMsg,         setAddMsg]         = useState("")
+  const [addLoading,     setAddLoading]     = useState(false)
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization":"Bearer "+token, "Content-Type":"application/json" }
@@ -778,40 +780,52 @@ export default function Dashboard({ navigate, logout, user }) {
         </div>
       </div>
 
-      {/* ════════════ ADD OPPORTUNITY MODAL ══════════════════════════ */}
+      {/* ════════════ SEARCH OPPORTUNITIES MODAL ════════════════════ */}
       {showAddModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={()=>setShowAddModal(false)}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={()=>{setShowAddModal(false);setAddMsg("")}} >
           <div style={{background:C.modalBg,borderRadius:18,padding:28,width:"100%",maxWidth:480,border:"1px solid "+C.border,boxShadow:"0 24px 60px rgba(0,0,0,0.4)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <h2 style={{margin:0,fontSize:17,fontWeight:800,color:C.text}}>＋ {isAr?"إضافة فرصة جديدة":"Add New Opportunity"}</h2>
-              <button onClick={()=>setShowAddModal(false)} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer",padding:0}}>✕</button>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <h2 style={{margin:0,fontSize:17,fontWeight:800,color:C.text}}>🔍 {isAr?"ابحث عن فرص":"Search Opportunities"}</h2>
+              <button onClick={()=>{setShowAddModal(false);setAddMsg("")}} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer",padding:0}}>✕</button>
             </div>
+            <p style={{margin:"0 0 16px",fontSize:12,color:C.muted}}>{isAr?"ابحث عن فرص جديدة وأضفها تلقائياً لقائمتك":"Search for new opportunities and add them to your list automatically"}</p>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <input style={{...darkInput}} placeholder={isAr?"عنوان الفرصة *":"Opportunity title *"} value={addForm.title} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))}/>
-              <input style={{...darkInput}} placeholder={isAr?"رابط الفرصة":"URL (optional)"} value={addForm.url} onChange={e=>setAddForm(f=>({...f,url:e.target.value}))}/>
+              <input style={{...darkInput}} placeholder={isAr?"كلمة البحث *  (مثال: software engineer Germany)":"Search query * (e.g. scholarships computer science)"} value={addForm.query} onChange={e=>setAddForm(f=>({...f,query:e.target.value}))}/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <select style={{...darkSelect}} value={addForm.type} onChange={e=>setAddForm(f=>({...f,type:e.target.value}))}>
-                  {["job","scholarship","internship","conference","training"].map(tp=><option key={tp} value={tp} style={{background:C.selectBg}}>{tp.charAt(0).toUpperCase()+tp.slice(1)}</option>)}
+                  <option value="" style={{background:C.selectBg}}>{isAr?"كل الأنواع":"All Types"}</option>
+                  {["job","scholarship","internship","conference","training","volunteering"].map(tp=><option key={tp} value={tp} style={{background:C.selectBg}}>{tp.charAt(0).toUpperCase()+tp.slice(1)}</option>)}
                 </select>
-                <input style={{...darkInput}} placeholder={isAr?"الدولة":"Country"} value={addForm.country} onChange={e=>setAddForm(f=>({...f,country:e.target.value}))}/>
+                <input style={{...darkInput}} placeholder={isAr?"الدولة (اختياري)":"Country (optional)"} value={addForm.country} onChange={e=>setAddForm(f=>({...f,country:e.target.value}))}/>
               </div>
-              <input type="date" style={{...darkInput}} value={addForm.deadline} onChange={e=>setAddForm(f=>({...f,deadline:e.target.value}))}/>
-              <textarea rows={2} style={{...darkInput,resize:"vertical",fontFamily:"inherit"}} placeholder={isAr?"ملاحظات...":"Notes..."} value={addForm.notes} onChange={e=>setAddForm(f=>({...f,notes:e.target.value}))}/>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:12,color:C.muted,whiteSpace:"nowrap"}}>{isAr?"عدد النتائج:":"Max results:"}</span>
+                <input type="range" min={5} max={20} step={5} value={addForm.limit} onChange={e=>setAddForm(f=>({...f,limit:+e.target.value}))} style={{flex:1,accentColor:C.blue}}/>
+                <span style={{fontSize:12,fontWeight:700,color:C.blue,minWidth:20}}>{addForm.limit}</span>
+              </div>
+              {addMsg&&<div style={{padding:"8px 12px",borderRadius:8,fontSize:12,background:addMsg.includes("✅")?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.1)",color:addMsg.includes("✅")?C.green:C.red,border:"1px solid "+(addMsg.includes("✅")?"rgba(16,185,129,0.2)":"rgba(239,68,68,0.2)")}}>{addMsg}</div>}
             </div>
             <div style={{display:"flex",gap:10,marginTop:20}}>
               <button onClick={async()=>{
-                if(!addForm.title.trim()) return
+                if(!addForm.query.trim()) return
+                setAddLoading(true); setAddMsg("")
                 try{
-                  await fetch(API+"/opportunities",{method:"POST",headers,body:JSON.stringify({title:addForm.title,url:addForm.url,opp_type:addForm.type,country:addForm.country,deadline:addForm.deadline,notes:addForm.notes,score:0,status:"new"})})
-                  setAddForm({title:"",url:"",type:"job",country:"",deadline:"",notes:""})
-                  setShowAddModal(false)
-                  loadOpps()
-                }catch(e){console.error(e)}
-              }} style={{flex:1,padding:"10px",background:"linear-gradient(135deg,"+C.blue+","+C.purple+")",color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:14}}>
-                {isAr?"حفظ":"Save"}
+                  const body={query:addForm.query,limit:addForm.limit}
+                  if(addForm.type) body.type=addForm.type
+                  if(addForm.country) body.country=addForm.country
+                  const res=await fetch(API+"/opportunities/search",{method:"POST",headers,body:JSON.stringify(body)})
+                  const data=await res.json()
+                  if(res.ok){
+                    setAddMsg(`✅ ${isAr?"تم إضافة":"Found"} ${data.opportunities?.length??0} ${isAr?"فرصة":"opportunities"}`)
+                    loadOpps()
+                  } else { setAddMsg("❌ "+(data.detail||"Search failed")) }
+                }catch(e){setAddMsg("❌ Connection error")}
+                setAddLoading(false)
+              }} style={{flex:1,padding:"10px",background:addLoading?"rgba(255,255,255,0.1)":"linear-gradient(135deg,"+C.blue+","+C.purple+")",color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:addLoading?"default":"pointer",fontSize:14}} disabled={addLoading}>
+                {addLoading?(isAr?"جاري البحث...":"Searching..."):(isAr?"بحث":"Search")}
               </button>
-              <button onClick={()=>setShowAddModal(false)} style={{padding:"10px 16px",background:C.card,border:"1px solid "+C.border,borderRadius:9,color:C.muted,cursor:"pointer",fontWeight:600,fontSize:13}}>
-                {isAr?"إلغاء":"Cancel"}
+              <button onClick={()=>{setShowAddModal(false);setAddMsg("")}} style={{padding:"10px 16px",background:C.card,border:"1px solid "+C.border,borderRadius:9,color:C.muted,cursor:"pointer",fontWeight:600,fontSize:13}}>
+                {isAr?"إغلاق":"Close"}
               </button>
             </div>
           </div>
@@ -1049,7 +1063,7 @@ export default function Dashboard({ navigate, logout, user }) {
                         <span style={{background:"#0891b2",color:"white",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</span>
                         <div style={{flex:1}}><div style={{fontSize:10,color:C.cyan,fontWeight:700,marginBottom:2,textTransform:"uppercase"}}>{q.category}</div><div style={{fontSize:14,fontWeight:600,color:C.text,lineHeight:1.5}}>{q.question}</div></div>
                       </div>
-                                           <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
+                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
                     </div>
                   ))}
                 </div>}
