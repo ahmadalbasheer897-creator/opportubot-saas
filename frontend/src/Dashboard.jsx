@@ -73,6 +73,8 @@ export default function Dashboard({ navigate, logout, user }) {
   const [customColors,   setCustomColors]   = useState(()=>{try{return JSON.parse(localStorage.getItem("ob_custom_colors")||"{}")}catch{return {}}})
   const [showThemePicker,setShowThemePicker]= useState(false)
   const [activePage,     setActivePage]     = useState("dashboard")
+  const [showAddModal,   setShowAddModal]   = useState(false)
+  const [addForm,        setAddForm]        = useState({title:"",url:"",type:"job",country:"",deadline:"",notes:""})
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization":"Bearer "+token, "Content-Type":"application/json" }
@@ -236,14 +238,14 @@ export default function Dashboard({ navigate, logout, user }) {
   // ── Type/deadline helpers ─────────────────────────────────────────
   const getTypeInfo = (type) => {
     const m = {
-      scholarship: {color:"#34d399",label:isAr?"منحة":"Scholarship",bg:"rgba(52,211,153,0.12)"},
-      job:         {color:"#818cf8",label:isAr?"وظيفة":"Job",       bg:"rgba(129,140,248,0.12)"},
-      internship:  {color:"#22d3ee",label:isAr?"تدريب":"Internship", bg:"rgba(34,211,238,0.12)"},
-      conference:  {color:"#c084fc",label:isAr?"مؤتمر":"Conference", bg:"rgba(192,132,252,0.12)"},
-      training:    {color:"#fbbf24",label:isAr?"دورة":"Training",    bg:"rgba(251,191,36,0.12)"},
-      volunteering:{color:"#f43f5e",label:isAr?"تطوع":"Volunteering",bg:"rgba(244,63,94,0.12)"},
+      scholarship: {color:"#34d399",label:isAr?"منحة":"Scholarship",bg:"rgba(52,211,153,0.12)", icon:"🎓"},
+      job:         {color:"#818cf8",label:isAr?"وظيفة":"Job",       bg:"rgba(129,140,248,0.12)",icon:"💼"},
+      internship:  {color:"#22d3ee",label:isAr?"تدريب":"Internship", bg:"rgba(34,211,238,0.12)",icon:"🔬"},
+      conference:  {color:"#c084fc",label:isAr?"مؤتمر":"Conference", bg:"rgba(192,132,252,0.12)",icon:"🎤"},
+      training:    {color:"#fbbf24",label:isAr?"دورة":"Training",    bg:"rgba(251,191,36,0.12)", icon:"📚"},
+      volunteering:{color:"#f43f5e",label:isAr?"تطوع":"Volunteering",bg:"rgba(244,63,94,0.12)",  icon:"🤝"},
     }
-    return m[type?.toLowerCase()] || {color:C.muted,label:type||"Opportunity",bg:"rgba(148,163,184,0.1)"}
+    return m[type?.toLowerCase()] || {color:C.muted,label:type||"Opportunity",bg:"rgba(148,163,184,0.1)",icon:"📌"}
   }
 
   const getDlInfo = (dl) => {
@@ -378,56 +380,89 @@ export default function Dashboard({ navigate, logout, user }) {
   )
 
   // ── LIST renderer ────────────────────────────────────────────────
-  const renderList = () => filteredOpps.map(opp=>{
-    const ti=getTypeInfo(opp.type); const dl=getDlInfo(opp.deadline)
+  const renderList = () => {
+    const STATUS_BADGE = {
+      new:      {bg:"rgba(100,116,139,0.15)", color:"#94a3b8",  label:"New"},
+      analyzed: {bg:"rgba(59,130,246,0.15)",  color:"#60a5fa",  label:"Analyzed"},
+      applied:  {bg:"rgba(249,115,22,0.15)",  color:"#fb923c",  label:"Applied"},
+      accepted: {bg:"rgba(16,185,129,0.15)",  color:"#34d399",  label:"Accepted ✓"},
+      rejected: {bg:"rgba(239,68,68,0.15)",   color:"#f87171",  label:"Rejected"},
+      archived: {bg:"rgba(100,116,139,0.1)",  color:"#64748b",  label:"Archived"},
+    }
     return (
-      <div key={opp.id} style={{background:C.card,border:"1px solid "+(expanded===opp.id?"rgba(255,255,255,0.12)":C.border),borderLeft:"4px solid "+ti.color,borderRadius:12,padding:"16px 20px",marginBottom:10,cursor:"pointer",boxShadow:expanded===opp.id?"0 4px 20px rgba(0,0,0,0.3)":"none"}}
-        onClick={()=>setExpanded(expanded===opp.id?null:opp.id)}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:isMobile?"wrap":"nowrap"}}>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-              <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:700,background:opp.score>=70?"rgba(16,185,129,0.15)":opp.score>=40?"rgba(245,158,11,0.15)":"rgba(239,68,68,0.15)",color:scoreColor(opp.score)}}>{opp.score}% Match</span>
-              {opp.type&&<span style={{fontSize:10,fontWeight:700,background:ti.bg,color:ti.color,padding:"2px 8px",borderRadius:8,textTransform:"uppercase"}}>{ti.label}</span>}
-              {opp.country&&opp.country!=="Not found"&&<span style={{fontSize:11,color:C.muted}}>🌍 {opp.country}</span>}
-              {dl&&<span style={{fontSize:11,color:dl.color,fontWeight:dl.urgent?700:400}}>{dl.icon} {dl.text}</span>}
-              {opp.status==="applied"&&<span style={{fontSize:10,fontWeight:700,background:"rgba(249,115,22,0.15)",color:"#fb923c",padding:"2px 8px",borderRadius:8}}>Applied</span>}
-              {opp.status==="accepted"&&<span style={{fontSize:10,fontWeight:700,background:"rgba(16,185,129,0.15)",color:"#34d399",padding:"2px 8px",borderRadius:8}}>Accepted ✓</span>}
-            </div>
-            <h3 style={{margin:"0 0 6px 0",fontSize:15,fontWeight:700,color:C.text,lineHeight:1.4}}>{opp.title||"Untitled"}</h3>
-            {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,textDecoration:"none"}} onClick={e=>e.stopPropagation()}>🔗 {opp.url.length>70?opp.url.slice(0,70)+"…":opp.url}</a>}
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:8}} onClick={e=>e.stopPropagation()}>
-            <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
-              style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:12,padding:"5px 8px",cursor:"pointer",outline:"none"}}>
-              {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-            </select>
-            <button onClick={e=>deleteOpp(opp.id,e)} style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:8,width:30,height:30,color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🗑</button>
-          </div>
-        </div>
-        {expanded===opp.id&&(
-          <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid "+C.border}} onClick={e=>e.stopPropagation()}>
-            {opp.summary&&<p style={{margin:"0 0 12px 0",fontSize:13,color:C.text,lineHeight:1.6}}>{opp.summary}</p>}
-            {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:13,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
-              {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:12,borderRadius:6,fontWeight:600}}>{t("viewOpp")}</a>}
-              <button style={{padding:"6px 12px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
-              <button style={{padding:"6px 12px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",color:"#818cf8",fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"Arabic")}>{t("coverLetterAR")}</button>
-              <button style={{padding:"6px 12px",background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)",color:C.cyan,fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openInterviewPrep(opp,isAr?"Arabic":"English")}>{t("interviewPrep")}</button>
-            </div>
-            <div>
-              <div style={{fontSize:12,color:C.muted,marginBottom:4}}>📝 {isAr?"ملاحظاتي":"My Notes"}</div>
-              <textarea rows={2} placeholder={isAr?"اكتب ملاحظاتك...":"Write notes (auto-saved)..."}
-                value={noteInputs[opp.id]??(opp.notes||"")}
-                onChange={e=>setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}
-                onBlur={()=>saveNote(opp.id)}
-                style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:13,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}
-              />
-            </div>
+      <div style={{borderRadius:12,overflow:"hidden",border:"1px solid "+C.border}}>
+        {/* Table header */}
+        {!isMobile&&(
+          <div style={{display:"grid",gridTemplateColumns:"2fr 90px 100px 110px 90px 130px",gap:0,background:C.card,borderBottom:"1px solid "+C.border,padding:"8px 16px"}}>
+            {[isAr?"الفرصة":"Opportunity", isAr?"تطابق":"Match", isAr?"النوع":"Type", isAr?"الحالة":"Status", isAr?"الموعد":"Deadline", isAr?"إجراءات":"Actions"].map((h,i)=>(
+              <div key={i} style={{fontSize:11,fontWeight:700,color:C.dim,textTransform:"uppercase",letterSpacing:"0.06em"}}>{h}</div>
+            ))}
           </div>
         )}
+        {/* Table rows */}
+        {filteredOpps.map((opp,idx)=>{
+          const ti=getTypeInfo(opp.type); const dl=getDlInfo(opp.deadline)
+          const sb=STATUS_BADGE[opp.status||"new"]||STATUS_BADGE.new
+          return (
+            <div key={opp.id}>
+              <div
+                style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"2fr 90px 100px 110px 90px 130px",gap:0,padding:"12px 16px",background:expanded===opp.id?(C.isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.02)"):idx%2===0?C.card:"transparent",borderBottom:"1px solid "+C.border,cursor:"pointer",alignItems:"center",transition:"background 0.15s"}}
+                onClick={()=>setExpanded(expanded===opp.id?null:opp.id)}>
+                {/* Title + source */}
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                  <div style={{width:34,height:34,borderRadius:8,background:ti.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{ti.icon||"📌"}</div>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{opp.title||"Untitled"}</div>
+                    {opp.country&&opp.country!=="Not found"&&<div style={{fontSize:11,color:C.muted}}>🌍 {opp.country}</div>}
+                  </div>
+                </div>
+                {/* Match % */}
+                <div style={{padding:"3px 8px",borderRadius:20,fontSize:12,fontWeight:700,background:opp.score>=70?"rgba(16,185,129,0.15)":opp.score>=40?"rgba(245,158,11,0.15)":"rgba(239,68,68,0.15)",color:scoreColor(opp.score),display:"inline-flex",alignItems:"center",width:"fit-content"}}>{opp.score}%</div>
+                {/* Type */}
+                {isMobile?null:<span style={{fontSize:10,fontWeight:700,background:ti.bg,color:ti.color,padding:"3px 8px",borderRadius:8,textTransform:"uppercase",width:"fit-content"}}>{ti.label}</span>}
+                {/* Status badge */}
+                <div onClick={e=>e.stopPropagation()}>
+                  <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
+                    style={{background:sb.bg,border:"none",borderRadius:8,color:sb.color,fontSize:11,padding:"4px 7px",cursor:"pointer",outline:"none",fontWeight:700}}>
+                    {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                  </select>
+                </div>
+                {/* Deadline */}
+                {isMobile?null:<div style={{fontSize:11,color:dl?.color||C.muted,fontWeight:dl?.urgent?700:400}}>{dl?`${dl.icon} ${dl.text}`:isAr?"—":"—"}</div>}
+                {/* Actions */}
+                <div style={{display:"flex",gap:5,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
+                  {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"5px 10px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:6,fontWeight:700,whiteSpace:"nowrap"}}>Apply ↗</a>}
+                  <button onClick={e=>deleteOpp(opp.id,e)} style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:6,width:26,height:26,color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11}}>🗑</button>
+                </div>
+              </div>
+              {/* Expanded details */}
+              {expanded===opp.id&&(
+                <div style={{padding:"16px 20px",borderBottom:"1px solid "+C.border,background:C.isDark?"rgba(255,255,255,0.02)":"rgba(0,0,0,0.01)"}} onClick={e=>e.stopPropagation()}>
+                  {opp.summary&&<p style={{margin:"0 0 12px 0",fontSize:13,color:C.text,lineHeight:1.6}}>{opp.summary}</p>}
+                  {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:13,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+                    {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:12,borderRadius:6,fontWeight:600}}>{t("viewOpp")}</a>}
+                    <button style={{padding:"6px 12px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
+                    <button style={{padding:"6px 12px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",color:"#818cf8",fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"Arabic")}>{t("coverLetterAR")}</button>
+                    <button style={{padding:"6px 12px",background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)",color:C.cyan,fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openInterviewPrep(opp,isAr?"Arabic":"English")}>{t("interviewPrep")}</button>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:C.muted,marginBottom:4}}>📝 {isAr?"ملاحظاتي":"My Notes"}</div>
+                    <textarea rows={2} placeholder={isAr?"اكتب ملاحظاتك...":"Write notes (auto-saved)..."}
+                      value={noteInputs[opp.id]??(opp.notes||"")}
+                      onChange={e=>setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}
+                      onBlur={()=>saveNote(opp.id)}
+                      style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:13,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     )
-  })
+  }
 
   // ── Profile modal helpers ─────────────────────────────────────────
   const mInp = (label,key,ph,type="text") => (
@@ -622,12 +657,12 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         )}
 
-        {/* Stats — 3 gradient hero cards */}
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:14,marginBottom:14}}>
+        {/* Stats — 6 cards (3 gradient hero + 3 colored accent) */}
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:14,marginBottom:14}}>
           {[
-            {label:isAr?"الفرص الجديدة":"New Opportunities",val:stats?.total??0,sub:`${stats?.deadline_soon??0} ${isAr?"موعد قريب":"due soon"}`,icon:"↗",grad:C.grad1},
-            {label:isAr?"متوسط التطابق":"Avg. Match %",val:opps.length>0?Math.round(opps.reduce((a,o)=>a+(o.score||0),0)/opps.length)+"%":"—",sub:isAr?"بناءً على ملفك":"Based on your profile",icon:"◎",grad:C.grad2},
-            {label:isAr?"جاهز للتقديم":"Ready to Apply",val:stats?.ready??0,sub:`${stats?.applied??0} ${isAr?"تم التقديم":"applied"} · ${stats?.accepted??0} ${isAr?"مقبول":"accepted"}`,icon:"✦",grad:C.grad3},
+            {label:isAr?"إجمالي الفرص":"New Opportunities",val:stats?.total??0,sub:`${stats?.deadline_soon??0} ${isAr?"موعد قريب":"due soon"}`,icon:"↗",grad:C.grad1},
+            {label:isAr?"جاهز للتقديم":"Ready to Apply",val:stats?.ready??0,sub:isAr?"مطابق للملف الشخصي":"Profile matched",icon:"✦",grad:C.grad2},
+            {label:isAr?"تم التقديم":"Applied",val:stats?.applied??0,sub:isAr?"طلبات مرسلة":"Submitted applications",icon:"📤",grad:C.grad3},
           ].map(s=>(
             <div key={s.label} style={{background:s.grad,borderRadius:16,padding:"20px",position:"relative",overflow:"hidden",boxShadow:"0 8px 24px rgba(109,40,217,0.2)"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
@@ -640,16 +675,19 @@ export default function Dashboard({ navigate, logout, user }) {
             </div>
           ))}
         </div>
-        {/* Mini stat badges */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:28}}>
+        {/* Accent stat cards — Accepted / Rejected / Due Soon */}
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:14,marginBottom:28}}>
           {[
-            {label:isAr?"مقبول":"Accepted",val:stats?.accepted??0,color:C.green},
-            {label:isAr?"مرفوض":"Rejected",val:stats?.rejected??0,color:C.red},
-            {label:isAr?"موعد قريب":"Due Soon",val:stats?.deadline_soon??0,color:C.amber},
+            {label:isAr?"مقبول":"Accepted",   val:stats?.accepted??0,      color:C.green, bg:"rgba(16,185,129,0.08)", border:"rgba(16,185,129,0.2)",  icon:"✅"},
+            {label:isAr?"مرفوض":"Rejected",   val:stats?.rejected??0,      color:C.red,   bg:"rgba(239,68,68,0.08)",  border:"rgba(239,68,68,0.2)",   icon:"❌"},
+            {label:isAr?"موعد قريب":"Due Soon",val:stats?.deadline_soon??0, color:C.amber, bg:"rgba(245,158,11,0.08)", border:"rgba(245,158,11,0.2)",  icon:"⏰"},
           ].map(s=>(
-            <div key={s.label} style={{background:C.card,border:"1px solid "+C.border,borderRadius:11,padding:"10px 14px",display:"flex",alignItems:"center",gap:8}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-              <div><div style={{fontSize:17,fontWeight:700,color:C.text}}>{s.val}</div><div style={{fontSize:10,color:C.dim}}>{s.label}</div></div>
+            <div key={s.label} style={{background:s.bg,border:"1px solid "+s.border,borderRadius:14,padding:"16px 20px",display:"flex",alignItems:"center",gap:14}}>
+              <div style={{fontSize:24,lineHeight:1}}>{s.icon}</div>
+              <div>
+                <div style={{fontSize:28,fontWeight:800,color:s.color,lineHeight:1,marginBottom:3}}>{s.val}</div>
+                <div style={{fontSize:11,color:C.muted,fontWeight:500}}>{s.label}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -670,6 +708,7 @@ export default function Dashboard({ navigate, logout, user }) {
                 ))}
               </div>
               {filteredOpps.length>0&&<button onClick={exportCSV} style={{padding:"5px 12px",background:C.card,border:"1px solid "+C.border,borderRadius:6,color:C.text,fontSize:11,fontWeight:600,cursor:"pointer"}}>↓ CSV</button>}
+              <button onClick={()=>setShowAddModal(true)} style={{padding:"5px 13px",background:"linear-gradient(135deg,"+C.blue+","+C.purple+")",color:"white",border:"none",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>＋ {isAr?"إضافة فرصة":"Add Opportunity"}</button>
             </div>
           </div>
 
@@ -728,6 +767,46 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         </div>
       </div>
+
+      {/* ════════════ ADD OPPORTUNITY MODAL ══════════════════════════ */}
+      {showAddModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={()=>setShowAddModal(false)}>
+          <div style={{background:C.modalBg,borderRadius:18,padding:28,width:"100%",maxWidth:480,border:"1px solid "+C.border,boxShadow:"0 24px 60px rgba(0,0,0,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h2 style={{margin:0,fontSize:17,fontWeight:800,color:C.text}}>＋ {isAr?"إضافة فرصة جديدة":"Add New Opportunity"}</h2>
+              <button onClick={()=>setShowAddModal(false)} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer",padding:0}}>✕</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <input style={{...darkInput}} placeholder={isAr?"عنوان الفرصة *":"Opportunity title *"} value={addForm.title} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))}/>
+              <input style={{...darkInput}} placeholder={isAr?"رابط الفرصة":"URL (optional)"} value={addForm.url} onChange={e=>setAddForm(f=>({...f,url:e.target.value}))}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <select style={{...darkSelect}} value={addForm.type} onChange={e=>setAddForm(f=>({...f,type:e.target.value}))}>
+                  {["job","scholarship","internship","conference","training"].map(tp=><option key={tp} value={tp} style={{background:C.selectBg}}>{tp.charAt(0).toUpperCase()+tp.slice(1)}</option>)}
+                </select>
+                <input style={{...darkInput}} placeholder={isAr?"الدولة":"Country"} value={addForm.country} onChange={e=>setAddForm(f=>({...f,country:e.target.value}))}/>
+              </div>
+              <input type="date" style={{...darkInput}} value={addForm.deadline} onChange={e=>setAddForm(f=>({...f,deadline:e.target.value}))}/>
+              <textarea rows={2} style={{...darkInput,resize:"vertical",fontFamily:"inherit"}} placeholder={isAr?"ملاحظات...":"Notes..."} value={addForm.notes} onChange={e=>setAddForm(f=>({...f,notes:e.target.value}))}/>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button onClick={async()=>{
+                if(!addForm.title.trim()) return
+                try{
+                  await fetch(API+"/opportunities",{method:"POST",headers,body:JSON.stringify({title:addForm.title,url:addForm.url,opp_type:addForm.type,country:addForm.country,deadline:addForm.deadline,notes:addForm.notes,score:0,status:"new"})})
+                  setAddForm({title:"",url:"",type:"job",country:"",deadline:"",notes:""})
+                  setShowAddModal(false)
+                  loadOpps()
+                }catch(e){console.error(e)}
+              }} style={{flex:1,padding:"10px",background:"linear-gradient(135deg,"+C.blue+","+C.purple+")",color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:14}}>
+                {isAr?"حفظ":"Save"}
+              </button>
+              <button onClick={()=>setShowAddModal(false)} style={{padding:"10px 16px",background:C.card,border:"1px solid "+C.border,borderRadius:9,color:C.muted,cursor:"pointer",fontWeight:600,fontSize:13}}>
+                {isAr?"إلغاء":"Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ════════════ PROFILE MODAL ════════════════════════════════ */}
       {showProfile&&(()=>{
@@ -904,74 +983,4 @@ export default function Dashboard({ navigate, logout, user }) {
                   padding:"14px 12px",borderRadius:14,cursor:"pointer",
                   border:"2px solid "+(theme===opt.key?C.blue:C.border),
                   background:theme===opt.key?"rgba(59,130,246,0.08)":C.card,
-                  transition:"border-color 0.15s,background 0.15s",
-                }}>
-                  <div style={{fontSize:24,marginBottom:8}}>{opt.icon}</div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>{opt.label}</div>
-                  <div style={{fontSize:11,color:C.muted}}>{opt.desc}</div>
-                  {theme===opt.key&&<div style={{marginTop:8,width:20,height:3,borderRadius:2,background:C.blue}}/>}
-                </div>
-              ))}
-            </div>
-            {theme==="custom"&&(
-              <div style={{borderTop:"1px solid "+C.border,paddingTop:16,display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
-                <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:0.5}}>{isAr?"تخصيص الألوان":"CUSTOMIZE COLORS"}</div>
-                {[
-                  {key:"bg",      label:isAr?"الخلفية":"Background",    default:"#080B10"},
-                  {key:"sidebar", label:isAr?"الشريط الجانبي":"Sidebar", default:"#0F131E"},
-                  {key:"accent",  label:isAr?"اللون الرئيسي":"Accent",  default:"#3b82f6"},
-                ].map(col=>(
-                  <div key={col.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:C.card,borderRadius:10,border:"1px solid "+C.border}}>
-                    <span style={{fontSize:13,color:C.text,fontWeight:500}}>{col.label}</span>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{width:26,height:26,borderRadius:6,background:customColors[col.key]||col.default,border:"1px solid "+C.border}}/>
-                      <input type="color" value={customColors[col.key]||col.default}
-                        onChange={e=>{const nc={...customColors,[col.key]:e.target.value};setCustomColors(nc);localStorage.setItem("ob_custom_colors",JSON.stringify(nc))}}
-                        style={{width:36,height:28,cursor:"pointer",border:"none",background:"transparent",padding:0,borderRadius:4}}/>
-                    </div>
-                  </div>
-                ))}
-                <button onClick={()=>{setCustomColors({});localStorage.removeItem("ob_custom_colors")}} style={{fontSize:11,color:C.muted,background:"none",border:"1px dashed "+C.border,borderRadius:8,padding:"6px",cursor:"pointer"}}>
-                  {isAr?"إعادة تعيين الألوان":"Reset to defaults"}
-                </button>
-              </div>
-            )}
-            <button onClick={()=>setShowThemePicker(false)} style={{width:"100%",padding:"11px",background:C.blue,color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>
-              {isAr?"تم":"Done"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ════════════ INTERVIEW PREP MODAL ════════════════════════ */}
-      {ipModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setIpModal(null)}>
-          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:720,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
-              <div><div style={{fontSize:15,fontWeight:700,color:C.cyan,marginBottom:4}}>{t("ipTitle")}</div><div style={{fontSize:12,color:C.muted}}>{ipModal.oppTitle} · {ipModal.lang}</div></div>
-              <button style={{padding:"6px 12px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,color:"#f87171",fontSize:12,fontWeight:600,cursor:"pointer"}} onClick={()=>setIpModal(null)}>{t("close")}</button>
-            </div>
-            {ipModal.loading ? <div style={{textAlign:"center",padding:"48px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🎤</div><div>{t("ipLoading")}</div><div style={{fontSize:12,marginTop:6,color:C.dim}}>{t("ipLoadingHint")}</div></div>
-              : ipModal.error ? <div style={{textAlign:"center",padding:"32px 0",color:C.red}}>{ipModal.error}</div>
-              : <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                  {(ipModal.questions||[]).map((q,i)=>(
-                    <div key={i} style={{border:"1px solid rgba(34,211,238,0.15)",borderRadius:12,overflow:"hidden"}}>
-                      <div style={{background:"rgba(34,211,238,0.05)",padding:"12px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
-                        <span style={{background:"#0891b2",color:"white",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</span>
-                        <div style={{flex:1}}><div style={{fontSize:10,color:C.cyan,fontWeight:700,marginBottom:2,textTransform:"uppercase"}}>{q.category}</div><div style={{fontSize:14,fontWeight:600,color:C.text,lineHeight:1.5}}>{q.question}</div></div>
-                      </div>
-                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
-                    </div>
-                  ))}
-                </div>}
-            {!ipModal.loading&&<div style={{marginTop:18,display:"flex",gap:8}}>
-              <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:ipModal.lang==="English"?"#0891b2":"rgba(255,255,255,0.05)",color:ipModal.lang==="English"?"white":C.muted}} onClick={()=>openInterviewPrep({id:ipModal.oppId,title:ipModal.oppTitle},"English")}>{t("english")}</button>
-              <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:ipModal.lang==="Arabic"?C.blue:"rgba(255,255,255,0.05)",color:ipModal.lang==="Arabic"?"white":C.muted}} onClick={()=>openInterviewPrep({id:ipModal.oppId,title:ipModal.oppTitle},"Arabic")}>{t("arabic")}</button>
-            </div>}
-          </div>
-        </div>
-      )}
-
-    </div>
-  )
-}
+                  transition:"border-color 0.15s,backgrou
