@@ -282,7 +282,7 @@ export default function Dashboard({ navigate, logout, user }) {
               {cols.map(opp=>{
                 const ti=getTypeInfo(opp.type); const dl=getDlInfo(opp.deadline)
                 return (
-                  <div key={opp.id} style={{background:"rgba(255,255,255,0.02)",borderRadius:10,padding:"10px",border:"1px solid "+C.border,borderLeft:"3px solid "+ti.color,cursor:"pointer"}}
+                  <div key={opp.id} style={{background:C.card,borderRadius:10,padding:"10px",border:"1px solid "+C.border,borderLeft:"3px solid "+ti.color,cursor:"pointer"}}
                     onClick={()=>{setViewMode("list");setExpanded(opp.id)}}>
                     <div style={{fontSize:10,fontWeight:700,color:ti.color,background:ti.bg,padding:"1px 6px",borderRadius:5,display:"inline-block",marginBottom:5,textTransform:"uppercase"}}>{ti.label}</div>
                     <div style={{fontSize:12,fontWeight:600,color:C.text,lineHeight:1.4,marginBottom:6}}>{opp.title?.slice(0,55)}{(opp.title?.length>55)?"…":""}</div>
@@ -311,7 +311,7 @@ export default function Dashboard({ navigate, logout, user }) {
         const isExp=expanded===opp.id
         return (
           <div key={opp.id} style={{
-            background:"rgba(15,19,30,0.95)",
+            background:C.sidebar,
             border:"1px solid "+(isExp?"rgba(139,92,246,0.4)":C.border),
             borderRadius:16,padding:"18px",cursor:"pointer",
             display:"flex",flexDirection:"column",gap:10,
@@ -339,7 +339,7 @@ export default function Dashboard({ navigate, logout, user }) {
             {/* Expanded */}
             {isExp&&(
               <div style={{borderTop:"1px solid "+C.border,paddingTop:12,display:"flex",flexDirection:"column",gap:12}} onClick={e=>e.stopPropagation()}>
-                {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:11,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:12,color:"#cbd5e1",lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
+                {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:11,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:12,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:6,fontWeight:600}} onClick={e=>e.stopPropagation()}>{t("viewOpp")}</a>}
                   <button style={{padding:"6px 10px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
@@ -406,8 +406,8 @@ export default function Dashboard({ navigate, logout, user }) {
         </div>
         {expanded===opp.id&&(
           <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid "+C.border}} onClick={e=>e.stopPropagation()}>
-            {opp.summary&&<p style={{margin:"0 0 12px 0",fontSize:13,color:"#cbd5e1",lineHeight:1.6}}>{opp.summary}</p>}
-            {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:13,color:"#cbd5e1",lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
+            {opp.summary&&<p style={{margin:"0 0 12px 0",fontSize:13,color:C.text,lineHeight:1.6}}>{opp.summary}</p>}
+            {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:13,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
               {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:12,borderRadius:6,fontWeight:600}}>{t("viewOpp")}</a>}
               <button style={{padding:"6px 12px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:12,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
@@ -631,7 +631,7 @@ export default function Dashboard({ navigate, logout, user }) {
           ].map(s=>(
             <div key={s.label} style={{background:s.grad,borderRadius:16,padding:"20px",position:"relative",overflow:"hidden",boxShadow:"0 8px 24px rgba(109,40,217,0.2)"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.75)"}}>{s.label}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{s.label}</div>
                 <div style={{fontSize:18,opacity:0.35}}>{s.icon}</div>
               </div>
               <div style={{fontSize:36,fontWeight:800,color:"white",lineHeight:1,marginBottom:5}}>{s.val}</div>
@@ -674,7 +674,7 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
 
           {/* Filters */}
-          <div style={{background:"rgba(255,255,255,0.01)",border:"1px solid "+C.border,borderRadius:12,padding:"14px",marginBottom:18,display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:"14px",marginBottom:18,display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
               <input style={{...darkInput,flex:"1 1 160px",padding:"8px 12px"}} placeholder={t("searchPlaceholder")} value={searchText} onChange={e=>setSearchText(e.target.value)}/>
               <select style={{...darkSelect,flex:"0 0 auto"}} value={filterType} onChange={e=>setFilterType(e.target.value)}>
@@ -876,7 +876,7 @@ export default function Dashboard({ navigate, logout, user }) {
               </div>
             </div>
             {clModal.loading ? <div style={{textAlign:"center",padding:"40px 0",color:C.muted}}><div style={{fontSize:36,marginBottom:12}}>✍️</div><div>{t("clLoading")}</div><div style={{fontSize:12,marginTop:6,color:C.dim}}>{t("clLoadingHint")}</div></div>
-              : <pre style={{whiteSpace:"pre-wrap",fontFamily:"inherit",fontSize:14,lineHeight:1.7,color:"#cbd5e1",background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:16,margin:0,overflowY:"auto",maxHeight:"50vh"}}>{clModal.text}</pre>}
+              : <pre style={{whiteSpace:"pre-wrap",fontFamily:"inherit",fontSize:14,lineHeight:1.7,color:C.text,background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:16,margin:0,overflowY:"auto",maxHeight:"50vh"}}>{clModal.text}</pre>}
             {!clModal.loading&&<div style={{marginTop:14,display:"flex",gap:8}}>
               <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:clModal.lang==="Arabic"?C.blue:"rgba(255,255,255,0.05)",color:clModal.lang==="Arabic"?"white":C.muted}} onClick={()=>openCoverLetter({id:clModal.oppId,title:clModal.oppTitle},"Arabic")}>{t("arabic")}</button>
             </div>}
@@ -960,7 +960,7 @@ export default function Dashboard({ navigate, logout, user }) {
                         <span style={{background:"#0891b2",color:"white",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</span>
                         <div style={{flex:1}}><div style={{fontSize:10,color:C.cyan,fontWeight:700,marginBottom:2,textTransform:"uppercase"}}>{q.category}</div><div style={{fontSize:14,fontWeight:600,color:C.text,lineHeight:1.5}}>{q.question}</div></div>
                       </div>
-                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:"#cbd5e1",lineHeight:1.6}}>{q.answer_tip}</div></div>
+                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
                     </div>
                   ))}
                 </div>}
