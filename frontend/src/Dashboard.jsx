@@ -77,6 +77,7 @@ export default function Dashboard({ navigate, logout, user }) {
   const [addForm,        setAddForm]        = useState({query:"",type:"job",country:"",limit:10})
   const [addMsg,         setAddMsg]         = useState("")
   const [addLoading,     setAddLoading]     = useState(false)
+  const [visitorStats,   setVisitorStats]   = useState(null)
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization":"Bearer "+token, "Content-Type":"application/json" }
@@ -103,6 +104,8 @@ export default function Dashboard({ navigate, logout, user }) {
 
   const loadAll = async () => {
     setLoading(true)
+    // Record visit (fire & forget — no await)
+    fetch(API+"/analytics/visit", {method:"POST", headers}).catch(()=>{})
     try {
       const [s, p, srcs] = await Promise.all([
         fetch(API+"/opportunities/stats",{headers}).then(r=>r.json()),
@@ -115,6 +118,10 @@ export default function Dashboard({ navigate, logout, user }) {
       if (p?.selected_sources) setSelectedDomains(p.selected_sources.split(",").map(d=>d.trim()).filter(Boolean))
       if (p?.custom_sources)   setCustomSources(p.custom_sources.split(",").map(d=>d.trim()).filter(Boolean))
       if (p?.onboarding_done === false && !localStorage.getItem("ob_onboarding_skipped")) setShowOnboarding(true)
+      // Load visitor analytics for owner
+      if (p?.plan === "owner" || user?.plan === "owner") {
+        fetch(API+"/analytics/stats", {headers}).then(r=>r.json()).then(setVisitorStats).catch(()=>{})
+      }
     } catch(e){ console.error("loadAll:",e) }
     await loadOpps()
     setLoading(false)
@@ -549,7 +556,10 @@ export default function Dashboard({ navigate, logout, user }) {
             {icon:"📅", label:isAr?"التقويم":"Calendar",                 key:"calendar", soon:true},
             {icon:"✉️", label:isAr?"الرسائل":"Messages",                 key:"messages", soon:true},
             {icon:"❓", label:isAr?"المساعدة":"Help Center",             key:"help",     soon:true},
-            ...(user?.is_owner?[{icon:"⚙️",label:t("adminPanel"),key:"admin"}]:[]),
+            ...(plan==="owner"?[
+              {icon:"📊",label:isAr?"إحصاءات الزوار":"Visitor Analytics",key:"analytics"},
+              {icon:"⚙️",label:t("adminPanel"),key:"admin"},
+            ]:[]),
           ].map(item=>{
             const isActive = activePage===item.key
             const handleNavClick = () => {
@@ -560,6 +570,7 @@ export default function Dashboard({ navigate, logout, user }) {
                 setShowProfile(true); return
               }
               if(item.key==="search"){ setShowSources(true); return }
+              if(item.key==="analytics"){ setActivePage("analytics"); return }
               if(item.key==="admin"){ navigate("admin"); return }
               if(item.key==="applications"){ setFilterStatus("applied"); setActivePage("applications"); return }
               if(item.key==="dashboard"){ setFilterStatus("all"); setActivePage("dashboard"); return }
@@ -661,6 +672,7 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         )}
 
+        {activePage!=="analytics"&&<>
         {/* Welcome header */}
         {!isMobile&&(
           <div style={{marginBottom:24}}>
@@ -778,6 +790,7 @@ export default function Dashboard({ navigate, logout, user }) {
             }
           </div>
         </div>
+      </>}
       </div>
 
       {/* ════════════ SEARCH OPPORTUNITIES MODAL ════════════════════ */}
@@ -984,6 +997,133 @@ export default function Dashboard({ navigate, logout, user }) {
               <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:clModal.lang==="Arabic"?C.blue:"rgba(255,255,255,0.05)",color:clModal.lang==="Arabic"?"white":C.muted}} onClick={()=>openCoverLetter({id:clModal.oppId,title:clModal.oppTitle},"Arabic")}>{t("arabic")}</button>
             </div>}
           </div>
+        </div>
+      )}
+
+      {/* ════════════ VISITOR ANALYTICS PANEL ════════════════════ */}
+      {activePage==="analytics"&&plan==="owner"&&(
+        <div>
+          <div style={{marginBottom:24}}>
+            <h1 style={{margin:0,fontSize:22,fontWeight:800,color:C.text}}>📊 {isAr?"إحصاءات الزوار":"Visitor Analytics"}</h1>
+            <p style={{margin:"4px 0 0",fontSize:13,color:C.muted}}>{isAr?"تتبع زوار الموقع والمستخدمين المسجلين":"Track site visitors and registered users"}</p>
+          </div>
+          {!visitorStats ? (
+            <div style={{textAlign:"center",padding:"60px 0",color:C.muted}}>
+              <div style={{fontSize:40,marginBottom:12}}>📡</div>
+              <div>{isAr?"جاري تحميل الإحصاءات...":"Loading analytics..."}</div>
+              <button style={{marginTop:16,...darkBtn(C.blue)}} onClick={()=>fetch(API+"/analytics/stats",{headers}).then(r=>r.json()).then(setVisitorStats).catch(()=>{})}>
+                {isAr?"تحديث":"Refresh"}
+              </button>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:20}}>
+              {/* Summary cards */}
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
+                {[
+                  {label:isAr?"إجمالي الزيارات":"Total Visits",       val:visitorStats.total_visits,    icon:"👁",  color:C.blue,  bg:"rgba(59,130,246,0.08)",  border:"rgba(59,130,246,0.2)"},
+                  {label:isAr?"زيارات اليوم":"Today's Visits",         val:visitorStats.today_visits,    icon:"📅",  color:C.green, bg:"rgba(16,185,129,0.08)",  border:"rgba(16,185,129,0.2)"},
+                  {label:isAr?"زيارات الأسبوع":"This Week",            val:visitorStats.week_visits,     icon:"📆",  color:C.purple,bg:"rgba(139,92,246,0.08)",  border:"rgba(139,92,246,0.2)"},
+                  {label:isAr?"IPs فريدة":"Unique IPs",                val:visitorStats.unique_ips_total,icon:"🌐",  color:C.cyan,  bg:"rgba(34,211,238,0.08)",  border:"rgba(34,211,238,0.2)"},
+                ].map(s=>(
+                  <div key={s.label} style={{background:s.bg,border:"1px solid "+s.border,borderRadius:14,padding:"16px 20px",display:"flex",alignItems:"center",gap:14}}>
+                    <div style={{fontSize:24,lineHeight:1}}>{s.icon}</div>
+                    <div>
+                      <div style={{fontSize:28,fontWeight:800,color:s.color,lineHeight:1,marginBottom:3}}>{s.val}</div>
+                      <div style={{fontSize:11,color:C.muted,fontWeight:500}}>{s.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Logged-in vs anonymous */}
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,1fr)",gap:14}}>
+                <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:16,padding:"18px 20px"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14}}>🔐 {isAr?"نوع الزوار":"Visitor Types"}</div>
+                  <div style={{display:"flex",gap:16}}>
+                    <div style={{flex:1,textAlign:"center",padding:14,borderRadius:12,background:"rgba(16,185,129,0.06)",border:"1px solid rgba(16,185,129,0.15)"}}>
+                      <div style={{fontSize:28,fontWeight:800,color:C.green}}>{visitorStats.logged_in_visits}</div>
+                      <div style={{fontSize:11,color:C.muted,marginTop:4}}>{isAr?"مسجلون":"Logged In"}</div>
+                    </div>
+                    <div style={{flex:1,textAlign:"center",padding:14,borderRadius:12,background:"rgba(100,116,139,0.06)",border:"1px solid rgba(100,116,139,0.15)"}}>
+                      <div style={{fontSize:28,fontWeight:800,color:C.muted}}>{visitorStats.anonymous_visits}</div>
+                      <div style={{fontSize:11,color:C.dim,marginTop:4}}>{isAr?"ضيوف":"Anonymous"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daily chart (simple bar) */}
+                <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:16,padding:"18px 20px"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14}}>📈 {isAr?"الزيارات (7 أيام)":"Visits (Last 7 days)"}</div>
+                  {visitorStats.daily_chart?.length > 0 ? (
+                    <div style={{display:"flex",alignItems:"flex-end",gap:6,height:72}}>
+                      {visitorStats.daily_chart.map(d=>{
+                        const max = Math.max(...visitorStats.daily_chart.map(x=>x.visits),1)
+                        const h   = Math.max(4, (d.visits/max)*64)
+                        return (
+                          <div key={d.day} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                            <div style={{fontSize:9,color:C.muted}}>{d.visits}</div>
+                            <div style={{width:"100%",height:h,background:C.blue,borderRadius:"3px 3px 0 0",opacity:0.8,transition:"height 0.3s"}}/>
+                            <div style={{fontSize:8,color:C.dim}}>{d.day.slice(5)}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : <div style={{color:C.dim,fontSize:12,textAlign:"center",padding:"24px 0"}}>{isAr?"لا توجد بيانات بعد":"No data yet"}</div>}
+                </div>
+              </div>
+
+              {/* Top users */}
+              {visitorStats.top_users?.length > 0 && (
+                <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:16,padding:"18px 20px"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14}}>🏆 {isAr?"أكثر المستخدمين زيارةً":"Top Visitors"}</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {visitorStats.top_users.map((u,i)=>(
+                      <div key={u.email} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",background:i===0?"rgba(245,158,11,0.06)":C.card,borderRadius:10,border:"1px solid "+C.border}}>
+                        <span style={{fontSize:14,width:22,textAlign:"center"}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":"  "}</span>
+                        <span style={{flex:1,fontSize:13,color:C.text,fontWeight:i===0?700:400}}>{u.email}</span>
+                        <span style={{fontSize:12,color:C.muted,fontWeight:600}}>{u.visits} {isAr?"زيارة":"visits"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent visits table */}
+              <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:16,padding:"18px 20px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>🕐 {isAr?"آخر الزيارات":"Recent Visits"}</div>
+                  <button style={{...darkBtn("rgba(59,130,246,0.1)","#60a5fa"),fontSize:11,padding:"5px 10px"}}
+                    onClick={()=>fetch(API+"/analytics/stats",{headers}).then(r=>r.json()).then(setVisitorStats).catch(()=>{})}>
+                    ↻ {isAr?"تحديث":"Refresh"}
+                  </button>
+                </div>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                    <thead>
+                      <tr style={{borderBottom:"1px solid "+C.border}}>
+                        {[isAr?"البريد":"Email", isAr?"IP":"IP", isAr?"الصفحة":"Page", isAr?"الوقت":"Time"].map(h=>(
+                          <th key={h} style={{padding:"6px 8px",textAlign:"left",color:C.dim,fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(visitorStats.recent||[]).map(v=>(
+                        <tr key={v.id} style={{borderBottom:"1px solid rgba(255,255,255,0.03)"}}>
+                          <td style={{padding:"7px 8px",color:v.user_email!=="—"?C.blue:C.dim}}>{v.user_email}</td>
+                          <td style={{padding:"7px 8px",color:C.muted,fontFamily:"monospace"}}>{v.ip||"—"}</td>
+                          <td style={{padding:"7px 8px",color:C.muted,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{v.page}</td>
+                          <td style={{padding:"7px 8px",color:C.dim,whiteSpace:"nowrap"}}>{v.visited_at?new Date(v.visited_at).toLocaleString():"—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {(!visitorStats.recent||visitorStats.recent.length===0)&&(
+                    <div style={{textAlign:"center",padding:"24px 0",color:C.dim}}>{isAr?"لا توجد زيارات بعد":"No visits recorded yet"}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

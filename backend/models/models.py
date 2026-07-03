@@ -161,3 +161,16 @@ class UserOpportunity(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="user_opportunities")
+
+
+class SiteVisit(Base):
+    """Records every visit to the site — public or logged-in."""
+    __tablename__ = "site_visits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String(100), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    page = Column(String(255), default="/", nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_email = Column(String(255), nullable=True)
+    visited_at = Column(DateTime(timezone=True), server_default=func.now())

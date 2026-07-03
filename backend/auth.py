@@ -64,6 +64,26 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    token: Optional[str] = Depends(OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Return current user if token is valid, else None (no error)."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "access":
+            return None
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            return None
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        return user if user and user.is_active else None
+    except JWTError:
+        return None
+
+
 def get_owner_user(current_user: User = Depends(get_current_user)) -> User:
     if current_user.plan != "owner":
         raise HTTPException(status_code=403, detail="Owner access required")

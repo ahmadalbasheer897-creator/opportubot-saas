@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from database import engine, Base
 from config import get_settings
-from routers import auth, user, opportunities, saved, admin, payment, digest
+from routers import auth, user, opportunities, saved, admin, payment, digest, analytics
 from routers.user import profile_router, pipeline_router, gifts_router
 
 logging.basicConfig(
@@ -65,6 +65,16 @@ def run_migrations():
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS deadline VARCHAR(100)",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS source VARCHAR(255)",
         "ALTER TABLE user_opportunities ADD COLUMN IF NOT EXISTS notes TEXT",
+        # site_visits table
+        """CREATE TABLE IF NOT EXISTS site_visits (
+            id SERIAL PRIMARY KEY,
+            ip_address VARCHAR(100),
+            user_agent VARCHAR(500),
+            page VARCHAR(255) DEFAULT '/',
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            user_email VARCHAR(255),
+            visited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -112,6 +122,7 @@ app.include_router(saved.router)
 app.include_router(admin.router)
 app.include_router(payment.router)
 app.include_router(digest.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
