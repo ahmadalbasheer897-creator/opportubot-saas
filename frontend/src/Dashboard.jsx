@@ -122,7 +122,7 @@ export default function Dashboard({ navigate, logout, user }) {
 
   const loadOpps = async () => {
     let url = `${API}/opportunities?limit=100&min_score=${minScore}`
-    if (filterType   !== "all") url += "&opp_type="+filterType
+    if (filterType   !== "all") url += "&type="+filterType
     if (filterStatus !== "all") url += "&status="+filterStatus
     try { const data = await fetch(url,{headers}).then(r=>r.json()); setOpps(data.opportunities||[]) } catch{}
   }
