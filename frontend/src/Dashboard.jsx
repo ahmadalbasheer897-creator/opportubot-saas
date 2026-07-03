@@ -169,7 +169,7 @@ export default function Dashboard({ navigate, logout, user }) {
 
   const saveNote    = async (id) => { const n=noteInputs[id]??""; await fetch(`${API}/opportunities/${id}/notes?notes=${encodeURIComponent(n)}`,{method:"PATCH",headers}) }
   const deleteOpp   = async (id,e) => { e.stopPropagation(); if(!confirm("Remove?")) return; await fetch(`${API}/opportunities/${id}`,{method:"DELETE",headers}); loadOpps() }
-  const exportCSV   = () => { const cols=["title","type","score","status","country","deadline","url"]; const rows=[cols.join(","),...filteredOpps.map(o=>cols.map(c=>`"${String(o[c]||"").replace(/"/g,"'")}"`).join(","))]; const b=new Blob([rows.join("\n")],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="opportunities.csv"; a.click() }
+  const exportCSV   = () => { const cols=["title","type","score","status","country","deadline","url","notes"]; const rows=[cols.join(","),...filteredOpps.map(o=>cols.map(c=>`"${String(o[c]||"").replace(/"/g,"'")}"`).join(","))]; const b=new Blob([rows.join("\n")],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="opportunities.csv"; a.click() }
   const saveProfile = async () => { await fetch(API+"/profile",{method:"PUT",headers,body:JSON.stringify(profileEdit)}); setShowProfile(false); loadAll() }
   const saveSources = async () => { await fetch(API+"/profile",{method:"PUT",headers,body:JSON.stringify({selected_sources:selectedDomains.join(","),custom_sources:customSources.join(",")})}); setShowSources(false) }
 
@@ -305,68 +305,78 @@ export default function Dashboard({ navigate, logout, user }) {
 
   // ── CARDS renderer ───────────────────────────────────────────────
   const renderCards = () => (
-    <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(290px,1fr))",gap:16}}>
+    <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
       {filteredOpps.map(opp=>{
         const ti=getTypeInfo(opp.type); const dl=getDlInfo(opp.deadline)
         const sc=opp.score||0; const sc_c=scoreColor(sc)
-        const tags=(opp.tags||"").split(",").map(t=>t.trim()).filter(Boolean).slice(0,3)
+        const tags=(opp.tags||"").split(",").map(tg=>tg.trim()).filter(Boolean).slice(0,3)
         const isExp=expanded===opp.id
         return (
           <div key={opp.id} style={{
             background:C.sidebar,
             border:"1px solid "+(isExp?"rgba(139,92,246,0.4)":C.border),
-            borderRadius:16,padding:"18px",cursor:"pointer",
-            display:"flex",flexDirection:"column",gap:10,
-            boxShadow:isExp?"0 0 0 1px rgba(139,92,246,0.2),0 8px 32px rgba(0,0,0,0.4)":"0 2px 8px rgba(0,0,0,0.2)",
+            borderRadius:18,overflow:"hidden",cursor:"pointer",
+            display:"flex",flexDirection:"column",
+            boxShadow:isExp?"0 0 0 1px rgba(139,92,246,0.2),0 8px 32px rgba(0,0,0,0.4)":"0 2px 12px rgba(0,0,0,0.15)",
             gridColumn:isExp?"1 / -1":"auto",
             transition:"border-color 0.2s,box-shadow 0.2s",
           }} onClick={()=>setExpanded(isExp?null:opp.id)}>
-            {/* Type + Match badge */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <span style={{fontSize:10,fontWeight:700,background:ti.bg,color:ti.color,padding:"2px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:0.5}}>{ti.label}</span>
-              <div style={{width:46,height:46,borderRadius:"50%",flexShrink:0,border:"2.5px solid "+sc_c,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.35)"}}>
-                <span style={{fontSize:13,fontWeight:800,color:sc_c,lineHeight:1}}>{sc}</span>
-                <span style={{fontSize:9,color:sc_c,lineHeight:1}}>%</span>
+
+            {/* ── Card Header: type icon + match gauge ── */}
+            <div style={{background:ti.bg,borderBottom:"1px solid "+C.border,padding:"11px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:20}}>{ti.icon||"📌"}</span>
+                <span style={{fontSize:11,fontWeight:700,color:ti.color,textTransform:"uppercase",letterSpacing:0.7}}>{ti.label}</span>
               </div>
-            </div>
-            {/* Title + Source */}
-            <div>
-              <h3 style={{margin:"0 0 3px 0",fontSize:14,fontWeight:700,color:C.text,lineHeight:1.4}}>{opp.title?.slice(0,70)}{(opp.title?.length>70)?"…":""}</h3>
-              {opp.source&&<div style={{fontSize:11,color:C.dim}}>{opp.source}</div>}
-            </div>
-            {/* Tags */}
-            {tags.length>0&&<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{tags.map(tag=><span key={tag} style={{fontSize:10,padding:"2px 8px",background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:10,color:C.muted}}>{tag}</span>)}</div>}
-            {/* Snippet */}
-            {opp.summary&&<p style={{margin:0,fontSize:11,color:C.dim,lineHeight:1.5}}>{isExp?opp.summary:opp.summary.slice(0,90)+(opp.summary.length>90?"…":"")}</p>}
-            {/* Expanded */}
-            {isExp&&(
-              <div style={{borderTop:"1px solid "+C.border,paddingTop:12,display:"flex",flexDirection:"column",gap:12}} onClick={e=>e.stopPropagation()}>
-                {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:11,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:12,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:6,fontWeight:600}} onClick={e=>e.stopPropagation()}>{t("viewOpp")}</a>}
-                  <button style={{padding:"6px 10px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
-                  <button style={{padding:"6px 10px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",color:"#818cf8",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"Arabic")}>{t("coverLetterAR")}</button>
-                  <button style={{padding:"6px 10px",background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)",color:C.cyan,fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openInterviewPrep(opp,isAr?"Arabic":"English")}>{t("interviewPrep")}</button>
-                  <button style={{padding:"6px 10px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",color:"#f87171",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={e=>deleteOpp(opp.id,e)}>🗑</button>
-                </div>
-                <div onClick={e=>e.stopPropagation()}>
-                  <div style={{fontSize:11,color:C.muted,marginBottom:4}}>📝 {isAr?"ملاحظاتي":"My Notes"}</div>
-                  <textarea rows={2} placeholder={isAr?"ملاحظاتك...":"Your notes (auto-saved)..."}
-                    value={noteInputs[opp.id]??(opp.notes||"")}
-                    onChange={e=>setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}
-                    onBlur={()=>saveNote(opp.id)}
-                    style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:12,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}
-                  />
+              {/* Conic-gradient match % ring */}
+              <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,position:"relative",
+                background:`conic-gradient(${sc_c} ${sc*3.6}deg, ${C.isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"} 0deg)`}}>
+                <div style={{position:"absolute",inset:5,borderRadius:"50%",background:C.sidebar,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:12,fontWeight:800,color:sc_c,lineHeight:1}}>{sc}</span>
+                  <span style={{fontSize:8,color:sc_c,lineHeight:1}}>%</span>
                 </div>
               </div>
-            )}
-            {/* Footer */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto"}} onClick={e=>e.stopPropagation()}>
+            </div>
+
+            {/* ── Card Body ── */}
+            <div style={{padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:8}}>
+              <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text,lineHeight:1.4}}>{opp.title?.slice(0,70)}{(opp.title?.length>70)?"…":""}</h3>
+              {opp.source&&<div style={{fontSize:11,color:C.dim}}>🌐 {opp.source}</div>}
+              {tags.length>0&&<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{tags.map(tag=><span key={tag} style={{fontSize:10,padding:"2px 8px",background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:10,color:C.muted}}>{tag}</span>)}</div>}
+              {opp.summary&&<p style={{margin:0,fontSize:12,color:C.dim,lineHeight:1.5}}>{isExp?opp.summary:opp.summary.slice(0,90)+(opp.summary.length>90?"…":"")}</p>}
+
+              {/* Expanded section */}
+              {isExp&&(
+                <div style={{borderTop:"1px solid "+C.border,paddingTop:12,display:"flex",flexDirection:"column",gap:12}} onClick={e=>e.stopPropagation()}>
+                  {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:11,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:12,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:6,fontWeight:600}} onClick={e=>e.stopPropagation()}>{t("viewOpp")}</a>}
+                    <button style={{padding:"6px 10px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
+                    <button style={{padding:"6px 10px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",color:"#818cf8",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openCoverLetter(opp,"Arabic")}>{t("coverLetterAR")}</button>
+                    <button style={{padding:"6px 10px",background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)",color:C.cyan,fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={()=>openInterviewPrep(opp,isAr?"Arabic":"English")}>{t("interviewPrep")}</button>
+                    <button style={{padding:"6px 10px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",color:"#f87171",fontSize:11,borderRadius:6,cursor:"pointer",fontWeight:600}} onClick={e=>deleteOpp(opp.id,e)}>🗑</button>
+                  </div>
+                  <div onClick={e=>e.stopPropagation()}>
+                    <div style={{fontSize:11,color:C.muted,marginBottom:4}}>📝 {isAr?"ملاحظاتي":"My Notes"}</div>
+                    <textarea rows={2} placeholder={isAr?"ملاحظاتك...":"Your notes (auto-saved)..."}
+                      value={noteInputs[opp.id]??(opp.notes||"")}
+                      onChange={e=>setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}
+                      onBlur={()=>saveNote(opp.id)}
+                      style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:12,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Card Footer ── */}
+            <div style={{padding:"10px 16px",borderTop:"1px solid "+C.border,background:C.isDark?"rgba(0,0,0,0.2)":"rgba(0,0,0,0.025)",display:"flex",justifyContent:"space-between",alignItems:"center"}} onClick={e=>e.stopPropagation()}>
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                 {opp.country&&opp.country!=="Not found"&&<span style={{fontSize:10,color:C.dim}}>📍 {opp.country}</span>}
                 {dl&&<span style={{fontSize:10,color:dl.color,fontWeight:dl.urgent?700:400}}>{dl.icon} {dl.text}</span>}
               </div>
-              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"4px 9px",background:C.blue,color:"white",textDecoration:"none",fontSize:10,borderRadius:6,fontWeight:700,whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>Apply ↗</a>}
                 <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
                   style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:6,color:C.text,fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none"}}>
                   {["new","analyzed","applied","accepted","rejected","archived"].map(sv=><option key={sv} value={sv} style={{background:C.selectBg}}>{sv.charAt(0).toUpperCase()+sv.slice(1)}</option>)}
@@ -663,13 +673,13 @@ export default function Dashboard({ navigate, logout, user }) {
             {label:isAr?"إجمالي الفرص":"New Opportunities",val:stats?.total??0,sub:`${stats?.deadline_soon??0} ${isAr?"موعد قريب":"due soon"}`,icon:"↗",grad:C.grad1},
             {label:isAr?"جاهز للتقديم":"Ready to Apply",val:stats?.ready??0,sub:isAr?"مطابق للملف الشخصي":"Profile matched",icon:"✦",grad:C.grad2},
             {label:isAr?"تم التقديم":"Applied",val:stats?.applied??0,sub:isAr?"طلبات مرسلة":"Submitted applications",icon:"📤",grad:C.grad3},
-          ].map(s=>(
-            <div key={s.label} style={{background:s.grad,borderRadius:16,padding:"20px",position:"relative",overflow:"hidden",boxShadow:"0 8px 24px rgba(109,40,217,0.2)"}}>
+          ].map((s,idx)=>(
+            <div key={s.label} style={{background:s.grad,borderRadius:16,padding:isMobile?"14px":"20px",position:"relative",overflow:"hidden",boxShadow:"0 8px 24px rgba(109,40,217,0.2)",gridColumn:isMobile&&idx===2?"1 / -1":"auto"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{s.label}</div>
+                <div style={{fontSize:isMobile?11:12,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{s.label}</div>
                 <div style={{fontSize:18,opacity:0.35}}>{s.icon}</div>
               </div>
-              <div style={{fontSize:36,fontWeight:800,color:"white",lineHeight:1,marginBottom:5}}>{s.val}</div>
+              <div style={{fontSize:isMobile?28:36,fontWeight:800,color:"white",lineHeight:1,marginBottom:5}}>{s.val}</div>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:500}}>{s.sub}</div>
               <div style={{position:"absolute",bottom:-22,right:-22,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.06)"}}/>
             </div>
@@ -681,11 +691,11 @@ export default function Dashboard({ navigate, logout, user }) {
             {label:isAr?"مقبول":"Accepted",   val:stats?.accepted??0,      color:C.green, bg:"rgba(16,185,129,0.08)", border:"rgba(16,185,129,0.2)",  icon:"✅"},
             {label:isAr?"مرفوض":"Rejected",   val:stats?.rejected??0,      color:C.red,   bg:"rgba(239,68,68,0.08)",  border:"rgba(239,68,68,0.2)",   icon:"❌"},
             {label:isAr?"موعد قريب":"Due Soon",val:stats?.deadline_soon??0, color:C.amber, bg:"rgba(245,158,11,0.08)", border:"rgba(245,158,11,0.2)",  icon:"⏰"},
-          ].map(s=>(
-            <div key={s.label} style={{background:s.bg,border:"1px solid "+s.border,borderRadius:14,padding:"16px 20px",display:"flex",alignItems:"center",gap:14}}>
-              <div style={{fontSize:24,lineHeight:1}}>{s.icon}</div>
+          ].map((s,idx)=>(
+            <div key={s.label} style={{background:s.bg,border:"1px solid "+s.border,borderRadius:14,padding:isMobile?"12px":"16px 20px",display:"flex",alignItems:"center",gap:isMobile?10:14,gridColumn:isMobile&&idx===2?"1 / -1":"auto"}}>
+              <div style={{fontSize:isMobile?20:24,lineHeight:1}}>{s.icon}</div>
               <div>
-                <div style={{fontSize:28,fontWeight:800,color:s.color,lineHeight:1,marginBottom:3}}>{s.val}</div>
+                <div style={{fontSize:isMobile?22:28,fontWeight:800,color:s.color,lineHeight:1,marginBottom:3}}>{s.val}</div>
                 <div style={{fontSize:11,color:C.muted,fontWeight:500}}>{s.label}</div>
               </div>
             </div>
@@ -1039,7 +1049,7 @@ export default function Dashboard({ navigate, logout, user }) {
                         <span style={{background:"#0891b2",color:"white",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</span>
                         <div style={{flex:1}}><div style={{fontSize:10,color:C.cyan,fontWeight:700,marginBottom:2,textTransform:"uppercase"}}>{q.category}</div><div style={{fontSize:14,fontWeight:600,color:C.text,lineHeight:1.5}}>{q.question}</div></div>
                       </div>
-                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
+                                           <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
                     </div>
                   ))}
                 </div>}
