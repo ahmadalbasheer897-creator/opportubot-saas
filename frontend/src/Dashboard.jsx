@@ -983,4 +983,74 @@ export default function Dashboard({ navigate, logout, user }) {
                   padding:"14px 12px",borderRadius:14,cursor:"pointer",
                   border:"2px solid "+(theme===opt.key?C.blue:C.border),
                   background:theme===opt.key?"rgba(59,130,246,0.08)":C.card,
-                  transition:"border-color 0.15s,backgrou
+                  transition:"border-color 0.15s,background 0.15s",
+                }}>
+                  <div style={{fontSize:24,marginBottom:8}}>{opt.icon}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>{opt.label}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{opt.desc}</div>
+                  {theme===opt.key&&<div style={{marginTop:8,width:20,height:3,borderRadius:2,background:C.blue}}/>}
+                </div>
+              ))}
+            </div>
+            {theme==="custom"&&(
+              <div style={{borderTop:"1px solid "+C.border,paddingTop:16,display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:0.5}}>{isAr?"تخصيص الألوان":"CUSTOMIZE COLORS"}</div>
+                {[
+                  {key:"bg",      label:isAr?"الخلفية":"Background",    default:"#080B10"},
+                  {key:"sidebar", label:isAr?"الشريط الجانبي":"Sidebar", default:"#0F131E"},
+                  {key:"accent",  label:isAr?"اللون الرئيسي":"Accent",  default:"#3b82f6"},
+                ].map(col=>(
+                  <div key={col.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:C.card,borderRadius:10,border:"1px solid "+C.border}}>
+                    <span style={{fontSize:13,color:C.text,fontWeight:500}}>{col.label}</span>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:26,height:26,borderRadius:6,background:customColors[col.key]||col.default,border:"1px solid "+C.border}}/>
+                      <input type="color" value={customColors[col.key]||col.default}
+                        onChange={e=>{const nc={...customColors,[col.key]:e.target.value};setCustomColors(nc);localStorage.setItem("ob_custom_colors",JSON.stringify(nc))}}
+                        style={{width:36,height:28,cursor:"pointer",border:"none",background:"transparent",padding:0,borderRadius:4}}/>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={()=>{setCustomColors({});localStorage.removeItem("ob_custom_colors")}} style={{fontSize:11,color:C.muted,background:"none",border:"1px dashed "+C.border,borderRadius:8,padding:"6px",cursor:"pointer"}}>
+                  {isAr?"إعادة تعيين الألوان":"Reset to defaults"}
+                </button>
+              </div>
+            )}
+            <button onClick={()=>setShowThemePicker(false)} style={{width:"100%",padding:"11px",background:C.blue,color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>
+              {isAr?"تم":"Done"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════ INTERVIEW PREP MODAL ════════════════════════ */}
+      {ipModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(3,7,18,0.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}} onClick={()=>setIpModal(null)}>
+          <div style={{background:C.modalBg,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"18px":"28px",maxWidth:720,width:"100%",boxShadow:"0 25px 50px rgba(0,0,0,0.5)",maxHeight:"88vh",overflowY:"auto",color:C.text}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+              <div><div style={{fontSize:15,fontWeight:700,color:C.cyan,marginBottom:4}}>{t("ipTitle")}</div><div style={{fontSize:12,color:C.muted}}>{ipModal.oppTitle} · {ipModal.lang}</div></div>
+              <button style={{padding:"6px 12px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,color:"#f87171",fontSize:12,fontWeight:600,cursor:"pointer"}} onClick={()=>setIpModal(null)}>{t("close")}</button>
+            </div>
+            {ipModal.loading ? <div style={{textAlign:"center",padding:"48px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🎤</div><div>{t("ipLoading")}</div><div style={{fontSize:12,marginTop:6,color:C.dim}}>{t("ipLoadingHint")}</div></div>
+              : ipModal.error ? <div style={{textAlign:"center",padding:"32px 0",color:C.red}}>{ipModal.error}</div>
+              : <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {(ipModal.questions||[]).map((q,i)=>(
+                    <div key={i} style={{border:"1px solid rgba(34,211,238,0.15)",borderRadius:12,overflow:"hidden"}}>
+                      <div style={{background:"rgba(34,211,238,0.05)",padding:"12px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
+                        <span style={{background:"#0891b2",color:"white",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</span>
+                        <div style={{flex:1}}><div style={{fontSize:10,color:C.cyan,fontWeight:700,marginBottom:2,textTransform:"uppercase"}}>{q.category}</div><div style={{fontSize:14,fontWeight:600,color:C.text,lineHeight:1.5}}>{q.question}</div></div>
+                      </div>
+                      <div style={{padding:"12px 16px",background:C.card}}><div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:4}}>{t("answerTip")}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{q.answer_tip}</div></div>
+                    </div>
+                  ))}
+                </div>}
+            {!ipModal.loading&&<div style={{marginTop:18,display:"flex",gap:8}}>
+              <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:ipModal.lang==="English"?"#0891b2":"rgba(255,255,255,0.05)",color:ipModal.lang==="English"?"white":C.muted}} onClick={()=>openInterviewPrep({id:ipModal.oppId,title:ipModal.oppTitle},"English")}>{t("english")}</button>
+              <button style={{padding:"6px 12px",border:"none",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:ipModal.lang==="Arabic"?C.blue:"rgba(255,255,255,0.05)",color:ipModal.lang==="Arabic"?"white":C.muted}} onClick={()=>openInterviewPrep({id:ipModal.oppId,title:ipModal.oppTitle},"Arabic")}>{t("arabic")}</button>
+            </div>}
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
