@@ -82,6 +82,8 @@ async def _send_email(to: str, subject: str, html_body: str, text_body: str = ""
 
 async def send_verification_email(to_email: str, name: str, token: str) -> bool:
     verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    local_verify_url = f"http://localhost:5173/opportubot-saas/verify-email?token={token}"
+    print(f"\n============================================================\n[DEVELOPMENT] Email Verification Link:\n{local_verify_url}\n============================================================\n", flush=True)
 
     html = f"""
 <!DOCTYPE html>
@@ -386,6 +388,8 @@ async def send_daily_digest_email(
 
 async def send_password_reset_email(to_email: str, name: str, token: str) -> bool:
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    local_reset_url = f"http://localhost:5173/opportubot-saas/reset-password?token={token}"
+    print(f"\n============================================================\n[DEVELOPMENT] Password Reset Link:\n{local_reset_url}\n============================================================\n", flush=True)
 
     html = f"""
 <!DOCTYPE html>

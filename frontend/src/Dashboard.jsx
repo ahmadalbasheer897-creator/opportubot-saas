@@ -7,14 +7,14 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 // ─── Theme Palettes ───────────────────────────────────────────────
 const PALETTES = {
   dark: {
-    bg:"#080B10", sidebar:"#0F131E", card:"rgba(255,255,255,0.02)",
-    border:"rgba(255,255,255,0.07)", text:"#F8FAFC", muted:"#94a3b8", dim:"#64748b",
+    bg:"#0B0F19", sidebar:"#121824", card:"rgba(255,255,255,0.02)",
+    border:"rgba(255,255,255,0.08)", text:"#F8FAFC", muted:"#94a3b8", dim:"#64748b",
     blue:"#3b82f6", purple:"#8b5cf6", green:"#10b981", orange:"#f97316",
     red:"#ef4444", amber:"#f59e0b", cyan:"#22d3ee",
     grad1:"linear-gradient(135deg,#7c3aed,#4f46e5)",
     grad2:"linear-gradient(135deg,#6d28d9,#7c3aed)",
     grad3:"linear-gradient(135deg,#5b21b6,#6d28d9)",
-    inputBg:"rgba(255,255,255,0.03)", selectBg:"#0F131E", modalBg:"#0F131E", isDark:true,
+    inputBg:"rgba(255,255,255,0.03)", selectBg:"#121824", modalBg:"#121824", isDark:true,
   },
   light: {
     bg:"#f0f4f8", sidebar:"#ffffff", card:"rgba(0,0,0,0.03)",
@@ -398,7 +398,6 @@ export default function Dashboard({ navigate, logout, user }) {
     </div>
   )
 
-  // ── LIST renderer ────────────────────────────────────────────────
   const renderList = () => {
     const STATUS_BADGE = {
       new:      {bg:"rgba(100,116,139,0.15)", color:"#94a3b8",  label:"New"},
@@ -412,8 +411,25 @@ export default function Dashboard({ navigate, logout, user }) {
       <div style={{borderRadius:12,overflow:"hidden",border:"1px solid "+C.border}}>
         {/* Table header */}
         {!isMobile&&(
-          <div style={{display:"grid",gridTemplateColumns:"2fr 90px 100px 110px 90px 130px",gap:0,background:C.card,borderBottom:"1px solid "+C.border,padding:"8px 16px"}}>
-            {[isAr?"الفرصة":"Opportunity", isAr?"تطابق":"Match", isAr?"النوع":"Type", isAr?"الحالة":"Status", isAr?"الموعد":"Deadline", isAr?"إجراءات":"Actions"].map((h,i)=>(
+          <div style={{
+            display:"grid",
+            gridTemplateColumns: "40px 2.5fr 90px 110px 1.2fr 1.2fr 110px 150px",
+            gap:10,
+            background:C.card,
+            borderBottom:"1px solid "+C.border,
+            padding:"10px 16px",
+            alignItems: "center"
+          }}>
+            {[
+              "",
+              isAr?"الفرصة":"Opportunity",
+              isAr?"التطابق":"Match",
+              isAr?"الحالة":"Status",
+              isAr?"الموقع":"Location",
+              isAr?"الراتب/القيمة":"Salary/Amount",
+              isAr?"الموعد":"Deadline",
+              isAr?"إجراءات":"Actions"
+            ].map((h,i)=>(
               <div key={i} style={{fontSize:11,fontWeight:700,color:C.dim,textTransform:"uppercase",letterSpacing:"0.06em"}}>{h}</div>
             ))}
           </div>
@@ -422,41 +438,179 @@ export default function Dashboard({ navigate, logout, user }) {
         {filteredOpps.map((opp,idx)=>{
           const ti=getTypeInfo(opp.type); const dl=getDlInfo(opp.deadline)
           const sb=STATUS_BADGE[opp.status||"new"]||STATUS_BADGE.new
+          const matchColor = opp.score >= 70 ? C.green : opp.score >= 40 ? C.orange : C.red
+          const matchBg = opp.score >= 70 ? "rgba(16,185,129,0.12)" : opp.score >= 40 ? "rgba(249,115,22,0.12)" : "rgba(239,68,68,0.12)"
+          const matchBorder = opp.score >= 70 ? "rgba(16,185,129,0.25)" : opp.score >= 40 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)"
+
+          if (isMobile) {
+            return (
+              <div key={opp.id} style={{
+                background: expanded===opp.id ? "rgba(255,255,255,0.03)" : C.card,
+                borderBottom: "1px solid "+C.border,
+                padding: "12px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                cursor: "pointer"
+              }} onClick={() => setExpanded(expanded===opp.id ? null : opp.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ fontSize: 16 }}>{ti.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {opp.title}
+                    </span>
+                  </div>
+                  <span style={{
+                    padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 700,
+                    background: matchBg, color: matchColor, border: "1px solid " + matchBorder
+                  }}>
+                    {opp.score}%
+                  </span>
+                </div>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: C.muted }}>
+                  <span>🌐 {opp.source || (isAr ? "مصدر غير معروف" : "Unknown Source")}</span>
+                  {dl && <span style={{ color: dl.color, fontWeight: dl.urgent ? 700 : 400 }}>{dl.icon} {dl.text}</span>}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }} onClick={e => e.stopPropagation()}>
+                  <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
+                    style={{background:sb.bg,border:"none",borderRadius:6,color:sb.color,fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none",fontWeight:700}}>
+                    {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                  </select>
+                  
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {opp.url && <a href={opp.url} target="_blank" rel="noreferrer" style={{ padding: "4px 8px", background: C.blue, color: "white", textDecoration: "none", fontSize: 11, borderRadius: 6, fontWeight: 700 }}>Apply ↗</a>}
+                    <button onClick={() => setExpanded(expanded===opp.id ? null : opp.id)} style={{ padding: "4px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid " + C.border, borderRadius: 6, color: C.text, fontSize: 11, fontWeight: 600 }}>
+                      {expanded===opp.id ? (isAr ? "إغلاق" : "Close") : (isAr ? "تفاصيل" : "Details")}
+                    </button>
+                  </div>
+                </div>
+
+                {expanded===opp.id && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)" }} onClick={e => e.stopPropagation()}>
+                    {opp.summary&&<p style={{margin:"0 0 10px",fontSize:12,color:C.text,lineHeight:1.5}}>{opp.summary}</p>}
+                    {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.12)",borderRadius:8,padding:"10px",marginBottom:10}}><div style={{fontSize:11,color:"#c084fc",fontWeight:700,marginBottom:2}}>✨ AI Analysis</div><p style={{margin:0,fontSize:12,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
+                    
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                      <button style={{padding:"5px 10px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",color:"#a78bfa",fontSize:11,borderRadius:6,fontWeight:600}} onClick={()=>openCoverLetter(opp,"English")}>{t("coverLetterEN")}</button>
+                      <button style={{padding:"5px 10px",background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",color:"#818cf8",fontSize:11,borderRadius:6,fontWeight:600}} onClick={()=>openCoverLetter(opp,"Arabic")}>{t("coverLetterAR")}</button>
+                      <button style={{padding:"5px 10px",background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)",color:C.cyan,fontSize:11,borderRadius:6,fontWeight:600}} onClick={()=>openInterviewPrep(opp,isAr?"Arabic":"English")}>{t("interviewPrep")}</button>
+                      <button onClick={e=>deleteOpp(opp.id,e)} style={{padding:"5px 10px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.15)",color:"#f87171",fontSize:11,borderRadius:6,fontWeight:600}}>🗑 Delete</button>
+                    </div>
+
+                    <div>
+                      <div style={{fontSize:11,color:C.muted,marginBottom:4}}>📝 {isAr?"ملاحظاتي":"My Notes"}</div>
+                      <textarea rows={2} placeholder="Write notes..."
+                        value={noteInputs[opp.id] ?? (opp.notes||"")}
+                        onChange={e=>setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}
+                        onBlur={()=>saveNote(opp.id)}
+                        style={{width:"100%",padding:"6px 8px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           return (
             <div key={opp.id}>
               <div
-                style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"2fr 90px 100px 110px 90px 130px",gap:0,padding:"12px 16px",background:expanded===opp.id?(C.isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.02)"):idx%2===0?C.card:"transparent",borderBottom:"1px solid "+C.border,cursor:"pointer",alignItems:"center",transition:"background 0.15s"}}
+                style={{
+                  display:"grid",
+                  gridTemplateColumns:"40px 2.5fr 90px 110px 1.2fr 1.2fr 110px 150px",
+                  gap:10,
+                  padding:"12px 16px",
+                  background:expanded===opp.id?(C.isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.02)"):idx%2===0?C.card:"transparent",
+                  borderBottom:"1px solid "+C.border,
+                  cursor:"pointer",
+                  alignItems:"center",
+                  transition:"background 0.15s"
+                }}
                 onClick={()=>setExpanded(expanded===opp.id?null:opp.id)}>
-                {/* Title + source */}
-                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-                  <div style={{width:34,height:34,borderRadius:8,background:ti.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{ti.icon||"📌"}</div>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{opp.title||"Untitled"}</div>
-                    {opp.country&&opp.country!=="Not found"&&<div style={{fontSize:11,color:C.muted}}>🌍 {opp.country}</div>}
-                  </div>
+                
+                {/* 1. Icon */}
+                <div style={{fontSize:18, display:"flex", alignItems:"center", justifyContent:"center"}}>{ti.icon||"📌"}</div>
+                
+                {/* 2. Title + source */}
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{opp.title||"Untitled"}</div>
+                  <div style={{fontSize:11,color:C.dim}}>{opp.source || (isAr ? "مصدر غير معروف" : "Unknown Source")}</div>
                 </div>
-                {/* Match % */}
-                <div style={{padding:"3px 8px",borderRadius:20,fontSize:12,fontWeight:700,background:opp.score>=70?"rgba(16,185,129,0.15)":opp.score>=40?"rgba(245,158,11,0.15)":"rgba(239,68,68,0.15)",color:scoreColor(opp.score),display:"inline-flex",alignItems:"center",width:"fit-content"}}>{opp.score}%</div>
-                {/* Type */}
-                {isMobile?null:<span style={{fontSize:10,fontWeight:700,background:ti.bg,color:ti.color,padding:"3px 8px",borderRadius:8,textTransform:"uppercase",width:"fit-content"}}>{ti.label}</span>}
-                {/* Status badge */}
+                
+                {/* 3. Match % */}
+                <div>
+                  <span style={{
+                    padding:"4px 10px",
+                    borderRadius:12,
+                    fontSize:11,
+                    fontWeight:700,
+                    background: matchBg,
+                    color: matchColor,
+                    border: "1px solid " + matchBorder,
+                    display:"inline-flex",
+                    alignItems:"center"
+                  }}>{opp.score}%</span>
+                </div>
+                
+                {/* 4. Status badge */}
                 <div onClick={e=>e.stopPropagation()}>
                   <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
                     style={{background:sb.bg,border:"none",borderRadius:8,color:sb.color,fontSize:11,padding:"4px 7px",cursor:"pointer",outline:"none",fontWeight:700}}>
                     {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
                   </select>
                 </div>
-                {/* Deadline */}
-                {isMobile?null:<div style={{fontSize:11,color:dl?.color||C.muted,fontWeight:dl?.urgent?700:400}}>{dl?`${dl.icon} ${dl.text}`:isAr?"—":"—"}</div>}
-                {/* Actions */}
-                <div style={{display:"flex",gap:5,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
+                
+                {/* 5. Location */}
+                <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  📍 {opp.country || (isAr ? "عالمي" : "Global")}
+                </div>
+
+                {/* 6. Salary/Amount */}
+                <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  💵 {opp.salary || opp.amount || (isAr ? "غير محدد" : "N/A")}
+                </div>
+
+                {/* 7. Deadline */}
+                <div style={{
+                  fontSize:11,
+                  color: dl ? dl.color : C.muted,
+                  fontWeight: dl?.urgent ? 700 : 500,
+                  background: dl?.urgent ? "rgba(239, 68, 68, 0.1)" : "transparent",
+                  padding: dl?.urgent ? "2px 6px" : "0",
+                  borderRadius: 6,
+                  width: "fit-content"
+                }}>
+                  {dl?`${dl.icon} ${dl.text}`:isAr?"—":"—"}
+                </div>
+                
+                {/* 8. Actions */}
+                <div style={{display:"flex",gap:6,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
                   {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"5px 10px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:6,fontWeight:700,whiteSpace:"nowrap"}}>Apply ↗</a>}
+                  <button
+                    onClick={() => setExpanded(expanded===opp.id ? null : opp.id)}
+                    style={{
+                      padding:"5px 10px",
+                      background:"rgba(255,255,255,0.05)",
+                      border: "1px solid " + C.border,
+                      borderRadius:6,
+                      color:C.text,
+                      cursor:"pointer",
+                      fontSize:11,
+                      fontWeight:600,
+                      whiteSpace:"nowrap"
+                    }}
+                  >
+                    {expanded===opp.id ? (isAr ? "إغلاق" : "Close") : (isAr ? "تفاصيل" : "Details")}
+                  </button>
                   <button onClick={e=>deleteOpp(opp.id,e)} style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:6,width:26,height:26,color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11}}>🗑</button>
                 </div>
               </div>
+              
               {/* Expanded details */}
               {expanded===opp.id&&(
-                <div style={{padding:"16px 20px",borderBottom:"1px solid "+C.border,background:C.isDark?"rgba(255,255,255,0.02)":"rgba(0,0,0,0.01)"}} onClick={e=>e.stopPropagation()}>
+                <div style={{padding:"16px 20px 16px 56px",borderBottom:"1px solid "+C.border,background:C.isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.01)"}} onClick={e=>e.stopPropagation()}>
                   {opp.summary&&<p style={{margin:"0 0 12px 0",fontSize:13,color:C.text,lineHeight:1.6}}>{opp.summary}</p>}
                   {opp.ai_analysis&&<div style={{background:"rgba(139,92,246,0.05)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:8,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,color:"#c084fc",fontWeight:700,marginBottom:4}}>✨ AI Analysis</div><p style={{margin:0,fontSize:13,color:C.text,lineHeight:1.5}}>{opp.ai_analysis}</p></div>}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
@@ -681,37 +835,39 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         )}
 
-        {/* Stats — 6 cards (3 gradient hero + 3 colored accent) */}
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:14,marginBottom:14}}>
+        {/* Stats — 6 gradient cards */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(6,1fr)",
+          gap: 14,
+          marginBottom: 28
+        }}>
           {[
-            {label:isAr?"إجمالي الفرص":"New Opportunities",val:stats?.total??0,sub:`${stats?.deadline_soon??0} ${isAr?"موعد قريب":"due soon"}`,icon:"↗",grad:C.grad1},
-            {label:isAr?"جاهز للتقديم":"Ready to Apply",val:stats?.ready??0,sub:isAr?"مطابق للملف الشخصي":"Profile matched",icon:"✦",grad:C.grad2},
-            {label:isAr?"تم التقديم":"Applied",val:stats?.applied??0,sub:isAr?"طلبات مرسلة":"Submitted applications",icon:"📤",grad:C.grad3},
-          ].map((s,idx)=>(
-            <div key={s.label} style={{background:s.grad,borderRadius:16,padding:isMobile?"14px":"20px",position:"relative",overflow:"hidden",boxShadow:"0 8px 24px rgba(109,40,217,0.2)",gridColumn:isMobile&&idx===2?"1 / -1":"auto"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                <div style={{fontSize:isMobile?11:12,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{s.label}</div>
-                <div style={{fontSize:18,opacity:0.35}}>{s.icon}</div>
+            { label: isAr ? "فرص جديدة" : "New Opportunities", val: stats?.total ?? 0, sub: isAr ? "فرص تم العثور عليها" : "Found opportunities", icon: "↗", grad: C.grad1 },
+            { label: isAr ? "جاهز للتقديم" : "Ready to Apply", val: stats?.ready ?? 0, sub: isAr ? "مطابقة للملف" : "Profile matched", icon: "✦", grad: C.grad2 },
+            { label: isAr ? "تم التقديم" : "Applied", val: stats?.applied ?? 0, sub: isAr ? "طلبات مرسلة" : "Submitted applications", icon: "📤", grad: C.grad3 },
+            { label: isAr ? "مقبول" : "Accepted", val: stats?.accepted ?? 0, sub: isAr ? "تهانينا! ✓" : "Congratulations! ✓", icon: "✅", grad: `linear-gradient(135deg, ${C.green}, ${C.green}cc)` },
+            { label: isAr ? "مرفوض" : "Rejected", val: stats?.rejected ?? 0, sub: isAr ? "طلبات مرفوضة" : "Declined applications", icon: "❌", grad: `linear-gradient(135deg, ${C.red}, ${C.red}cc)` },
+            { label: isAr ? "ينتهي قريباً" : "Due Soon", val: stats?.deadline_soon ?? 0, sub: isAr ? "خلال 7 أيام" : "Within 7 days", icon: "⏰", grad: `linear-gradient(135deg, ${C.orange}, ${C.red}cc)` },
+          ].map((s, idx) => (
+            <div key={s.label} style={{
+              background: s.grad,
+              borderRadius: 16,
+              padding: isMobile ? "12px 14px" : "18px 16px",
+              position: "relative",
+              overflow: "hidden",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{s.label}</div>
+                <div style={{ fontSize: 16, opacity: 0.35 }}>{s.icon}</div>
               </div>
-              <div style={{fontSize:isMobile?28:36,fontWeight:800,color:"white",lineHeight:1,marginBottom:5}}>{s.val}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:500}}>{s.sub}</div>
-              <div style={{position:"absolute",bottom:-22,right:-22,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.06)"}}/>
-            </div>
-          ))}
-        </div>
-        {/* Accent stat cards — Accepted / Rejected / Due Soon */}
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:14,marginBottom:28}}>
-          {[
-            {label:isAr?"مقبول":"Accepted",   val:stats?.accepted??0,      color:C.green, bg:"rgba(16,185,129,0.08)", border:"rgba(16,185,129,0.2)",  icon:"✅"},
-            {label:isAr?"مرفوض":"Rejected",   val:stats?.rejected??0,      color:C.red,   bg:"rgba(239,68,68,0.08)",  border:"rgba(239,68,68,0.2)",   icon:"❌"},
-            {label:isAr?"موعد قريب":"Due Soon",val:stats?.deadline_soon??0, color:C.amber, bg:"rgba(245,158,11,0.08)", border:"rgba(245,158,11,0.2)",  icon:"⏰"},
-          ].map((s,idx)=>(
-            <div key={s.label} style={{background:s.bg,border:"1px solid "+s.border,borderRadius:14,padding:isMobile?"12px":"16px 20px",display:"flex",alignItems:"center",gap:isMobile?10:14,gridColumn:isMobile&&idx===2?"1 / -1":"auto"}}>
-              <div style={{fontSize:isMobile?20:24,lineHeight:1}}>{s.icon}</div>
-              <div>
-                <div style={{fontSize:isMobile?22:28,fontWeight:800,color:s.color,lineHeight:1,marginBottom:3}}>{s.val}</div>
-                <div style={{fontSize:11,color:C.muted,fontWeight:500}}>{s.label}</div>
-              </div>
+              <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: "white", lineHeight: 1.1, marginBottom: 2 }}>{s.val}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", fontWeight: 500 }}>{s.sub}</div>
+              <div style={{ position: "absolute", bottom: -22, right: -22, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
             </div>
           ))}
         </div>
@@ -755,6 +911,14 @@ export default function Dashboard({ navigate, logout, user }) {
                 <option value="week" style={{background:C.selectBg}}>{t("dueThisWeek")}</option>
                 <option value="month" style={{background:C.selectBg}}>{t("dueThisMonth")}</option>
                 <option value="overdue" style={{background:C.selectBg}}>{t("overdue")}</option>
+              </select>
+              {/* Match Score dropdown */}
+              <select style={{...darkSelect,flex:"0 0 auto"}} value={minScore} onChange={e=>setMinScore(Number(e.target.value))}>
+                <option value={0} style={{background:C.selectBg}}>{isAr?"كل نسب المطابقة":"All Match Scores"}</option>
+                <option value={80} style={{background:C.selectBg}}>{isAr?"مطابقة 80% فأكثر":"80%+ Match"}</option>
+                <option value={70} style={{background:C.selectBg}}>{isAr?"مطابقة 70% فأكثر":"70%+ Match"}</option>
+                <option value={50} style={{background:C.selectBg}}>{isAr?"مطابقة 50% فأكثر":"50%+ Match"}</option>
+                <option value={30} style={{background:C.selectBg}}>{isAr?"مطابقة 30% فأكثر":"30%+ Match"}</option>
               </select>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.04)",paddingTop:10}}>
