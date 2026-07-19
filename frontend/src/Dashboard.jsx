@@ -7,14 +7,14 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:8000"
 // ─── Theme Palettes ───────────────────────────────────────────────
 const PALETTES = {
   dark: {
-    bg:"#0B0F19", sidebar:"#121824", card:"rgba(255,255,255,0.02)",
-    border:"rgba(255,255,255,0.08)", text:"#F8FAFC", muted:"#94a3b8", dim:"#64748b",
-    blue:"#3b82f6", purple:"#8b5cf6", green:"#10b981", orange:"#f97316",
-    red:"#ef4444", amber:"#f59e0b", cyan:"#22d3ee",
-    grad1:"linear-gradient(135deg,#7c3aed,#4f46e5)",
-    grad2:"linear-gradient(135deg,#6d28d9,#7c3aed)",
-    grad3:"linear-gradient(135deg,#5b21b6,#6d28d9)",
-    inputBg:"rgba(255,255,255,0.03)", selectBg:"#121824", modalBg:"#121824", isDark:true,
+    bg:"#121214", sidebar:"#18181C", card:"#1E1E22",
+    border:"rgba(255,255,255,0.06)", text:"#E6E6E6", muted:"#8E8E93", dim:"#5C5C60",
+    blue:"#2F80ED", purple:"#9B51E0", green:"#27AE60", orange:"#F2994A",
+    red:"#EB5757", amber:"#F2C94C", cyan:"#56CCF2",
+    grad1:"#18181C",
+    grad2:"#18181C",
+    grad3:"#18181C",
+    inputBg:"rgba(255,255,255,0.02)", selectBg:"#18181C", modalBg:"#18181C", isDark:true,
   },
   light: {
     bg:"#f0f4f8", sidebar:"#ffffff", card:"rgba(0,0,0,0.03)",
@@ -321,7 +321,7 @@ export default function Dashboard({ navigate, logout, user }) {
         const tags=(opp.tags||"").split(",").map(tg=>tg.trim()).filter(Boolean).slice(0,3)
         const isExp=expanded===opp.id
         return (
-          <div key={opp.id} style={{
+          <div key={opp.id} className="hover-lift motion-fade-in" style={{
             background:C.sidebar,
             border:"1px solid "+(isExp?"rgba(139,92,246,0.4)":C.border),
             borderRadius:18,overflow:"hidden",cursor:"pointer",
@@ -337,13 +337,17 @@ export default function Dashboard({ navigate, logout, user }) {
                 <span style={{fontSize:20}}>{ti.icon||"📌"}</span>
                 <span style={{fontSize:11,fontWeight:700,color:ti.color,textTransform:"uppercase",letterSpacing:0.7}}>{ti.label}</span>
               </div>
-              {/* Conic-gradient match % ring */}
-              <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,position:"relative",
-                background:`conic-gradient(${sc_c} ${sc*3.6}deg, ${C.isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"} 0deg)`}}>
-                <div style={{position:"absolute",inset:5,borderRadius:"50%",background:C.sidebar,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                  <span style={{fontSize:12,fontWeight:800,color:sc_c,lineHeight:1}}>{sc}</span>
-                  <span style={{fontSize:8,color:sc_c,lineHeight:1}}>%</span>
-                </div>
+              {/* Flat Match Badge */}
+              <div style={{
+                border: "1px solid " + (sc >= 70 ? "rgba(39,174,96,0.3)" : sc >= 40 ? "rgba(242,153,74,0.3)" : "rgba(235,87,87,0.3)"),
+                background: sc >= 70 ? "rgba(39,174,96,0.08)" : sc >= 40 ? "rgba(242,153,74,0.08)" : "rgba(235,87,87,0.08)",
+                padding: "3px 9px",
+                borderRadius: 14,
+                fontSize: 11,
+                fontWeight: 700,
+                color: sc_c
+              }}>
+                {sc}% {isAr ? "تطابق" : "Match"}
               </div>
             </div>
 
@@ -517,6 +521,7 @@ export default function Dashboard({ navigate, logout, user }) {
           return (
             <div key={opp.id}>
               <div
+                className="motion-fade-in"
                 style={{
                   display:"grid",
                   gridTemplateColumns:"40px 2.5fr 90px 110px 1.2fr 1.2fr 110px 150px",
@@ -672,6 +677,67 @@ export default function Dashboard({ navigate, logout, user }) {
   // ─────────────────────────────────────────────────────────────────
   return (
     <div style={{fontFamily:"Inter,system-ui,-apple-system,sans-serif",minHeight:"100vh",background:C.bg,color:C.text,display:"flex",flexDirection:isAr?"row-reverse":"row",direction:isAr?"rtl":"ltr"}}>
+      
+      {/* ── Custom Animations (Handcrafted Motions) ── */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .motion-fade-in {
+          animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .hover-lift {
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s, box-shadow 0.2s !important;
+        }
+        .hover-lift:hover {
+          transform: translateY(-3px) !important;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+          border-color: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        /* Logo animations */
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-2px);
+          }
+        }
+        @keyframes sparklePulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.25);
+            opacity: 1;
+          }
+        }
+        .logo-icon-wrap svg {
+          animation: float 2.5s ease-in-out infinite;
+        }
+        .plane-group, .robot-group {
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .logo-container:hover .plane-group {
+          transform: translate(2px, -3px) rotate(1deg);
+        }
+        .logo-container:hover .robot-group {
+          transform: translate(1px, -2px) rotate(-1deg);
+        }
+        .sparkle-group {
+          transform-origin: 82px 29px;
+          animation: sparklePulse 1.8s ease-in-out infinite;
+        }
+      `}} />
 
       {/* ── Onboarding ──────────────────────────────────────── */}
       {showOnboarding&&<Onboarding onComplete={()=>{setShowOnboarding(false);localStorage.setItem("ob_onboarding_skipped","1");loadAll()}}/>}
@@ -685,10 +751,18 @@ export default function Dashboard({ navigate, logout, user }) {
         display:"flex",flexDirection:"column",padding:"24px 20px",boxSizing:"border-box",flexShrink:0,zIndex:1001,
         ...(isMobile?{position:"fixed",top:0,bottom:0,left:isAr?"auto":0,right:isAr?0:"auto",transform:sidebarOpen?"translateX(0)":(isAr?"translateX(100%)":"translateX(-100%)"),transition:"transform 0.3s cubic-bezier(0.4,0,0.2,1)",boxShadow:"0 10px 30px rgba(0,0,0,0.5)"}:{}),
       }}>
-        {/* Logo */}
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24}}>
-          <span style={{fontSize:22}}>🤖</span>
-          <span style={{fontSize:17,fontWeight:800,background:"linear-gradient(135deg,#60a5fa,#c084fc)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>OpportuBot</span>
+        {/* Animated Origami Logo */}
+        <div 
+          className="logo-container"
+          style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,cursor:"pointer",direction:"ltr"}}
+          onClick={() => navigate("dashboard")}
+        >
+          <img
+            src="/logo.png"
+            alt="OpportuBot"
+            style={{width:38,height:38,objectFit:"contain",animation:"float 3s ease-in-out infinite"}}
+          />
+          <span style={{fontSize:16,fontWeight:800,color:C.text,letterSpacing:"-0.3px"}}>OpportuBot</span>
         </div>
 
         {/* User widget */}
@@ -821,7 +895,10 @@ export default function Dashboard({ navigate, logout, user }) {
         {isMobile&&(
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.sidebar,padding:"12px 16px",borderRadius:12,border:"1px solid "+C.border,marginBottom:20}}>
             <button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",color:C.text,fontSize:22,cursor:"pointer"}}>☰</button>
-            <div style={{fontSize:15,fontWeight:800,display:"flex",alignItems:"center",gap:6}}>🤖 OpportuBot</div>
+            <div className="logo-container" style={{fontSize:15,fontWeight:800,display:"flex",alignItems:"center",gap:6,color:C.text,direction:"ltr"}}>
+              <img src="/logo.png" alt="OpportuBot" style={{width:30,height:30,objectFit:"contain",animation:"float 3s ease-in-out infinite"}}/>
+              <span>OpportuBot</span>
+            </div>
             <button style={{background:C.card,border:"1px solid "+C.border,borderRadius:7,padding:"4px 10px",color:C.text,fontSize:11,cursor:"pointer"}} onClick={toggleLang}>{isAr?"EN":"عربي"}</button>
           </div>
         )}
@@ -835,7 +912,7 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         )}
 
-        {/* Stats — 6 gradient cards */}
+        {/* Stats — 6 matte cards */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(6,1fr)",
@@ -843,31 +920,29 @@ export default function Dashboard({ navigate, logout, user }) {
           marginBottom: 28
         }}>
           {[
-            { label: isAr ? "فرص جديدة" : "New Opportunities", val: stats?.total ?? 0, sub: isAr ? "فرص تم العثور عليها" : "Found opportunities", icon: "↗", grad: C.grad1 },
-            { label: isAr ? "جاهز للتقديم" : "Ready to Apply", val: stats?.ready ?? 0, sub: isAr ? "مطابقة للملف" : "Profile matched", icon: "✦", grad: C.grad2 },
-            { label: isAr ? "تم التقديم" : "Applied", val: stats?.applied ?? 0, sub: isAr ? "طلبات مرسلة" : "Submitted applications", icon: "📤", grad: C.grad3 },
-            { label: isAr ? "مقبول" : "Accepted", val: stats?.accepted ?? 0, sub: isAr ? "تهانينا! ✓" : "Congratulations! ✓", icon: "✅", grad: `linear-gradient(135deg, ${C.green}, ${C.green}cc)` },
-            { label: isAr ? "مرفوض" : "Rejected", val: stats?.rejected ?? 0, sub: isAr ? "طلبات مرفوضة" : "Declined applications", icon: "❌", grad: `linear-gradient(135deg, ${C.red}, ${C.red}cc)` },
-            { label: isAr ? "ينتهي قريباً" : "Due Soon", val: stats?.deadline_soon ?? 0, sub: isAr ? "خلال 7 أيام" : "Within 7 days", icon: "⏰", grad: `linear-gradient(135deg, ${C.orange}, ${C.red}cc)` },
+            { label: isAr ? "فرص جديدة" : "New Opportunities", val: stats?.total ?? 0, sub: isAr ? "تم العثور عليها" : "Found opportunities", icon: "↗", color: C.blue },
+            { label: isAr ? "جاهز للتقديم" : "Ready to Apply", val: stats?.ready ?? 0, sub: isAr ? "مطابقة للملف" : "Profile matched", icon: "✦", color: C.purple },
+            { label: isAr ? "تم التقديم" : "Applied", val: stats?.applied ?? 0, sub: isAr ? "طلبات مرسلة" : "Submitted applications", icon: "📤", color: C.cyan },
+            { label: isAr ? "مقبول" : "Accepted", val: stats?.accepted ?? 0, sub: isAr ? "مقبول ✓" : "Accepted ✓", icon: "✅", color: C.green },
+            { label: isAr ? "مرفوض" : "Rejected", val: stats?.rejected ?? 0, sub: isAr ? "مرفوض" : "Declined", icon: "❌", color: C.red },
+            { label: isAr ? "ينتهي قريباً" : "Due Soon", val: stats?.deadline_soon ?? 0, sub: isAr ? "خلال 7 أيام" : "Within 7 days", icon: "⏰", color: C.orange },
           ].map((s, idx) => (
             <div key={s.label} style={{
-              background: s.grad,
-              borderRadius: 16,
+              background: C.sidebar,
+              border: "1px solid " + C.border,
+              borderRadius: 14,
               padding: isMobile ? "12px 14px" : "18px 16px",
-              position: "relative",
-              overflow: "hidden",
-              boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{s.label}</div>
-                <div style={{ fontSize: 16, opacity: 0.35 }}>{s.icon}</div>
+                <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: C.muted }}>{s.label}</div>
+                <div style={{ fontSize: 13, color: s.color, fontWeight: 700 }}>{s.icon}</div>
               </div>
-              <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: "white", lineHeight: 1.1, marginBottom: 2 }}>{s.val}</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", fontWeight: 500 }}>{s.sub}</div>
-              <div style={{ position: "absolute", bottom: -22, right: -22, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+              <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 700, color: C.text, lineHeight: 1.1, marginBottom: 2 }}>{s.val}</div>
+              <div style={{ fontSize: 9, color: C.dim, fontWeight: 500 }}>{s.sub}</div>
             </div>
           ))}
         </div>

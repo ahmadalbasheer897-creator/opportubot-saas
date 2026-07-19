@@ -183,7 +183,11 @@ export default function Landing({ navigate }) {
         transition: "background .3s,border-color .3s,backdrop-filter .3s",
       }}>
         <div style={{ fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 24 }}>🤖</span>
+          <img
+            src="/logo.png"
+            alt="OpportuBot"
+            style={{ width: 40, height: 40, objectFit: "contain", animation: "float 3s ease-in-out infinite" }}
+          />
           <span style={{ background: "linear-gradient(135deg,#60a5fa,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             OpportuBot
           </span>
