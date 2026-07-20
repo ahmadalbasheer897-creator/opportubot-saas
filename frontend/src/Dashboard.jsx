@@ -29,8 +29,25 @@ const PALETTES = {
 }
 const PLAN_COLORS = { free:"#64748b", pro:"#3b82f6", gift:"#8b5cf6", owner:"#ef4444" }
 
-const OPP_TYPES = ["all","job","scholarship","internship","conference","training"]
-const STATUSES  = ["all","new","analyzed","applied","accepted","rejected"]
+const OPP_TYPES = ["all","job","scholarship","internship","conference","training","volunteering"]
+const STATUSES  = ["all","new","ready","applied","waiting","accepted","rejected","no_reply","restricted"]
+
+const STATUS_DISPLAY = {
+  new:"New", ready:"Ready to Apply", applied:"Applied",
+  waiting:"Waiting", accepted:"Accepted", rejected:"Rejected",
+  no_reply:"No Reply", restricted:"Restricted", archived:"Archived", analyzed:"Ready to Apply"
+}
+const STATUS_COLORS = {
+  new:"#64748b", ready:"#f59e0b", analyzed:"#f59e0b", applied:"#3b82f6",
+  waiting:"#8b5cf6", accepted:"#10b981", rejected:"#ef4444",
+  no_reply:"#92400e", restricted:"#475569", archived:"#6b7280"
+}
+const STATUS_BG = {
+  new:"rgba(100,116,139,0.15)", ready:"rgba(245,158,11,0.15)", analyzed:"rgba(245,158,11,0.15)",
+  applied:"rgba(59,130,246,0.15)", waiting:"rgba(139,92,246,0.15)",
+  accepted:"rgba(16,185,129,0.15)", rejected:"rgba(239,68,68,0.15)",
+  no_reply:"rgba(146,64,14,0.15)", restricted:"rgba(71,85,105,0.15)"
+}
 
 export default function Dashboard({ navigate, logout, user }) {
   const [stats,          setStats]          = useState(null)
@@ -78,6 +95,9 @@ export default function Dashboard({ navigate, logout, user }) {
   const [addMsg,         setAddMsg]         = useState("")
   const [addLoading,     setAddLoading]     = useState(false)
   const [visitorStats,   setVisitorStats]   = useState(null)
+  const [showWidget,     setShowWidget]     = useState(true)
+  const [widgetMin,      setWidgetMin]      = useState(false)
+  const [activeTab,      setActiveTab]      = useState("all")
 
   const token   = localStorage.getItem("ob_token")
   const headers = { "Authorization":"Bearer "+token, "Content-Type":"application/json" }
@@ -229,6 +249,11 @@ export default function Dashboard({ navigate, logout, user }) {
   const uniqueCountries = [...new Set(opps.map(o=>o.country).filter(c=>c&&c!=="Not found"&&c.trim()))].sort()
 
   const filteredOpps = opps.filter(opp => {
+    // IQ tab: Iraq-friendly opportunities
+    if (activeTab==="iq") {
+      const loc=(opp.country||"").toLowerCase()
+      if(!loc.includes("iraq")&&!loc.includes("international")&&!loc.includes("global")&&!loc.includes("online")&&loc!=="not found"&&loc!=="") return false
+    }
     if (filterCountry !== "all" && opp.country !== filterCountry) return false
     if (searchText.trim()) {
       const q=searchText.toLowerCase()
@@ -383,18 +408,37 @@ export default function Dashboard({ navigate, logout, user }) {
             </div>
 
             {/* ── Card Footer ── */}
-            <div style={{padding:"10px 16px",borderTop:"1px solid "+C.border,background:C.isDark?"rgba(0,0,0,0.2)":"rgba(0,0,0,0.025)",display:"flex",justifyContent:"space-between",alignItems:"center"}} onClick={e=>e.stopPropagation()}>
-              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                {opp.country&&opp.country!=="Not found"&&<span style={{fontSize:10,color:C.dim}}>📍 {opp.country}</span>}
-                {dl&&<span style={{fontSize:10,color:dl.color,fontWeight:dl.urgent?700:400}}>{dl.icon} {dl.text}</span>}
+            <div style={{padding:"10px 14px",borderTop:"1px solid "+C.border,background:C.isDark?"rgba(0,0,0,0.2)":"rgba(0,0,0,0.025)"}} onClick={e=>e.stopPropagation()}>
+              {/* Location + deadline row */}
+              <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8,fontSize:10,color:C.dim}}>
+                <span>{opp.country&&opp.country!=="Not found"?`📍 ${opp.country}`:"📍 Not found"}</span>
+                <span>{dl?`${dl.icon} ${dl.text}`:"⏰ Not found"}</span>
               </div>
-              <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"4px 9px",background:C.blue,color:"white",textDecoration:"none",fontSize:10,borderRadius:6,fontWeight:700,whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>Apply ↗</a>}
+              {/* Action buttons */}
+              <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                {opp.url&&<a href={opp.url} target="_blank" rel="noreferrer" style={{padding:"5px 11px",background:C.blue,color:"white",textDecoration:"none",fontSize:11,borderRadius:7,fontWeight:700,whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>🔗 Apply</a>}
+                <button style={{padding:"5px 11px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.25)",color:"#a78bfa",fontSize:11,borderRadius:7,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();openCoverLetter(opp,"English")}}>📝 Copy Letter</button>
+                <button style={{padding:"5px 11px",background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,color:C.text,fontSize:11,borderRadius:7,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setExpanded(isExp?null:opp.id)}}>👁 View</button>
+                <button onClick={e=>deleteOpp(opp.id,e)} style={{marginLeft:"auto",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:7,width:28,height:28,color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0}}>🗑</button>
+              </div>
+              {/* Move to dropdown + status badge */}
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{isAr?"انقل إلى:":"Move to:"}</span>
                 <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
-                  style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:6,color:C.text,fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none"}}>
-                  {["new","analyzed","applied","accepted","rejected","archived"].map(sv=><option key={sv} value={sv} style={{background:C.selectBg}}>{sv.charAt(0).toUpperCase()+sv.slice(1)}</option>)}
+                  style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid "+C.border,borderRadius:7,color:C.text,fontSize:11,padding:"4px 8px",cursor:"pointer",outline:"none"}}>
+                  <option value="" style={{background:C.selectBg}}>-- select --</option>
+                  {["new","ready","applied","waiting","accepted","rejected","no_reply","restricted"].map(sv=><option key={sv} value={sv} style={{background:C.selectBg}}>{STATUS_DISPLAY[sv]||sv}</option>)}
                 </select>
+                <span style={{padding:"3px 9px",borderRadius:12,fontSize:10,fontWeight:700,background:STATUS_BG[opp.status||"new"]||"rgba(100,116,139,0.15)",color:STATUS_COLORS[opp.status||"new"]||C.muted,whiteSpace:"nowrap"}}>
+                  {STATUS_DISPLAY[opp.status||"new"]||"New"}
+                </span>
               </div>
+              {/* Inline note */}
+              <input placeholder={isAr?"أضف ملاحظة...":"Add a note..."} value={noteInputs[opp.id]??(opp.notes||"")}
+                onChange={e=>{e.stopPropagation();setNoteInputs(n=>({...n,[opp.id]:e.target.value}))}}
+                onBlur={()=>saveNote(opp.id)}
+                onClick={e=>e.stopPropagation()}
+                style={{width:"100%",padding:"6px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+C.border,borderRadius:7,color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
             </div>
           </div>
         )
@@ -480,7 +524,7 @@ export default function Dashboard({ navigate, logout, user }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }} onClick={e => e.stopPropagation()}>
                   <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
                     style={{background:sb.bg,border:"none",borderRadius:6,color:sb.color,fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none",fontWeight:700}}>
-                    {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                    {["new","ready","applied","waiting","accepted","rejected","no_reply","restricted"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{STATUS_DISPLAY[s]||s}</option>)}
                   </select>
                   
                   <div style={{ display: "flex", gap: 6 }}>
@@ -563,7 +607,7 @@ export default function Dashboard({ navigate, logout, user }) {
                 <div onClick={e=>e.stopPropagation()}>
                   <select value={opp.status||"new"} onChange={e=>updateStatus(opp.id,e.target.value,e)}
                     style={{background:sb.bg,border:"none",borderRadius:8,color:sb.color,fontSize:11,padding:"4px 7px",cursor:"pointer",outline:"none",fontWeight:700}}>
-                    {["new","analyzed","applied","accepted","rejected","archived"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                    {["new","ready","applied","waiting","accepted","rejected","no_reply","restricted"].map(s=><option key={s} value={s} style={{background:C.selectBg,color:C.text}}>{STATUS_DISPLAY[s]||s}</option>)}
                   </select>
                 </div>
                 
@@ -912,40 +956,41 @@ export default function Dashboard({ navigate, logout, user }) {
           </div>
         )}
 
-        {/* Stats — 6 matte cards */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(6,1fr)",
-          gap: 14,
-          marginBottom: 28
-        }}>
-          {[
-            { label: isAr ? "فرص جديدة" : "New Opportunities", val: stats?.total ?? 0, sub: isAr ? "تم العثور عليها" : "Found opportunities", icon: "↗", color: C.blue },
-            { label: isAr ? "جاهز للتقديم" : "Ready to Apply", val: stats?.ready ?? 0, sub: isAr ? "مطابقة للملف" : "Profile matched", icon: "✦", color: C.purple },
-            { label: isAr ? "تم التقديم" : "Applied", val: stats?.applied ?? 0, sub: isAr ? "طلبات مرسلة" : "Submitted applications", icon: "📤", color: C.cyan },
-            { label: isAr ? "مقبول" : "Accepted", val: stats?.accepted ?? 0, sub: isAr ? "مقبول ✓" : "Accepted ✓", icon: "✅", color: C.green },
-            { label: isAr ? "مرفوض" : "Rejected", val: stats?.rejected ?? 0, sub: isAr ? "مرفوض" : "Declined", icon: "❌", color: C.red },
-            { label: isAr ? "ينتهي قريباً" : "Due Soon", val: stats?.deadline_soon ?? 0, sub: isAr ? "خلال 7 أيام" : "Within 7 days", icon: "⏰", color: C.orange },
-          ].map((s, idx) => (
-            <div key={s.label} style={{
-              background: C.sidebar,
-              border: "1px solid " + C.border,
-              borderRadius: 14,
-              padding: isMobile ? "12px 14px" : "18px 16px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: C.muted }}>{s.label}</div>
-                <div style={{ fontSize: 13, color: s.color, fontWeight: 700 }}>{s.icon}</div>
-              </div>
-              <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 700, color: C.text, lineHeight: 1.1, marginBottom: 2 }}>{s.val}</div>
-              <div style={{ fontSize: 9, color: C.dim, fontWeight: 500 }}>{s.sub}</div>
+        {/* Stats — 8 pipeline boxes */}
+        {(()=>{
+          const waitingCount = opps.filter(o=>(o.status||"new")==="waiting").length
+          const noReplyCount = opps.filter(o=>(o.status||"new")==="no_reply").length
+          const newCount     = opps.filter(o=>(o.status||"new")==="new").length
+          const pipelineStats = [
+            { key:"new",      label:isAr?"جديد":"New",          val: newCount,                icon:"📋", bg:"#374151", badge:"#9ca3af" },
+            { key:"ready",    label:isAr?"جاهز":"Ready",        val: stats?.ready ?? opps.filter(o=>["analyzed","ready"].includes(o.status||"")).length, icon:"🔔", bg:"#92400e", badge:"#f59e0b" },
+            { key:"applied",  label:isAr?"تقديم":"Applied",     val: stats?.applied ?? 0,    icon:"📤", bg:"#1e3a5f", badge:"#3b82f6" },
+            { key:"waiting",  label:isAr?"انتظار":"Waiting",    val: waitingCount,            icon:"⏳", bg:"#3b2070", badge:"#8b5cf6" },
+            { key:"accepted", label:isAr?"مقبول":"Accepted",    val: stats?.accepted ?? 0,   icon:"✅", bg:"#064e3b", badge:"#10b981" },
+            { key:"rejected", label:isAr?"مرفوض":"Rejected",    val: stats?.rejected ?? 0,   icon:"❌", bg:"#7f1d1d", badge:"#ef4444" },
+            { key:"no_reply", label:isAr?"لا رد":"No Reply",    val: noReplyCount,            icon:"📭", bg:"#3d2314", badge:"#d97706" },
+            { key:"deadline", label:isAr?"قريب!":"Deadline!",   val: stats?.deadline_soon ?? 0, icon:"⚠️", bg:"#7f1d1d", badge:"#f87171" },
+          ]
+          return (
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(4,1fr)":"repeat(8,1fr)",gap:8,marginBottom:18}}>
+              {pipelineStats.map(s=>(
+                <div key={s.key} onClick={()=>{ if(s.key!=="deadline"){ setActiveTab(s.key); setFilterStatus(s.key==="ready"?"analyzed":s.key==="all"?"all":s.key) } }}
+                  style={{
+                    background: activeTab===s.key ? s.bg : (C.isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.04)"),
+                    border:"1px solid "+(activeTab===s.key?s.badge+"55":C.border),
+                    borderRadius:12, padding:isMobile?"10px 6px":"14px 10px",
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+                    cursor:s.key!=="deadline"?"pointer":"default",
+                    transition:"all 0.15s",
+                    boxShadow:activeTab===s.key?"0 0 0 1px "+s.badge+"33":"none"
+                  }}>
+                  <div style={{fontSize:isMobile?18:22,fontWeight:800,color:s.badge,lineHeight:1}}>{s.val}</div>
+                  <div style={{fontSize:isMobile?8:10,fontWeight:600,color:activeTab===s.key?s.badge:C.muted,textAlign:"center",letterSpacing:0.3}}>{s.icon} {s.label}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        })()}
 
         {/* Opportunities panel */}
         <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:20,padding:isMobile?"14px":"22px",boxShadow:"0 10px 30px rgba(0,0,0,0.15)",flex:1,display:"flex",flexDirection:"column"}}>
@@ -966,6 +1011,56 @@ export default function Dashboard({ navigate, logout, user }) {
               <button onClick={()=>setShowAddModal(true)} style={{padding:"5px 13px",background:"linear-gradient(135deg,"+C.blue+","+C.purple+")",color:"white",border:"none",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>＋ {isAr?"إضافة فرصة":"Add Opportunity"}</button>
             </div>
           </div>
+
+          {/* ── Status tab bar ── */}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+            {[
+              {key:"all",       label:isAr?"الكل":"All"},
+              {key:"ready",     label:isAr?"جاهز للتقديم":"Ready to Apply"},
+              {key:"applied",   label:isAr?"تقديم":"Applied"},
+              {key:"waiting",   label:isAr?"انتظار":"Waiting"},
+              {key:"accepted",  label:isAr?"مقبول":"Accepted"},
+              {key:"rejected",  label:isAr?"مرفوض":"Rejected"},
+              {key:"no_reply",  label:isAr?"لا رد":"No Reply"},
+              {key:"stats",     label:isAr?"إحصاء النجاح":"Success Stats"},
+              {key:"restricted",label:isAr?"مقيد":"Restricted"},
+              {key:"iq",        label:"🇮🇶 Iraqi OK"},
+            ].map(tab=>{
+              const isActive = activeTab===tab.key
+              const tabColor = STATUS_COLORS[tab.key] || C.blue
+              return (
+                <button key={tab.key} onClick={()=>{
+                  setActiveTab(tab.key)
+                  if(tab.key==="all") { setFilterStatus("all"); return }
+                  if(tab.key==="stats"||tab.key==="iq") return
+                  setFilterStatus(tab.key==="ready"?"analyzed":tab.key)
+                }} style={{
+                  padding:"5px 12px",
+                  background: isActive ? (STATUS_BG[tab.key]||"rgba(59,130,246,0.15)") : "transparent",
+                  border:"1px solid "+(isActive?(tabColor+"66"):C.border),
+                  borderRadius:20,
+                  fontSize:12,fontWeight:isActive?700:500,
+                  color:isActive?(tabColor):C.muted,
+                  cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s",
+                }}>
+                  {tab.label}
+                </button>
+              )
+            })}
+            {/* Type dropdown */}
+            <select value={filterType} onChange={e=>setFilterType(e.target.value)} style={{padding:"5px 10px",background:C.selectBg,border:"1px solid "+C.border,borderRadius:20,color:C.text,fontSize:12,cursor:"pointer",outline:"none"}}>
+              <option value="all" style={{background:C.selectBg}}>Type...</option>
+              {["job","scholarship","internship","conference","training","volunteering"].map(tp=><option key={tp} value={tp} style={{background:C.selectBg}}>{tp.charAt(0).toUpperCase()+tp.slice(1)}</option>)}
+            </select>
+          </div>
+
+          {/* Deadline warning banner */}
+          {(stats?.deadline_soon??0)>0&&(
+            <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:16}}>⚠️</span>
+              <span style={{fontSize:13,fontWeight:600,color:"#f87171"}}>{stats.deadline_soon} {isAr?"فرصة/فرص تنتهي خلال 7 أيام!":"opportunity/ies with deadline within 7 days!"}</span>
+            </div>
+          )}
 
           {/* Filters */}
           <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:"14px",marginBottom:18,display:"flex",flexDirection:"column",gap:12}}>
@@ -1422,6 +1517,59 @@ export default function Dashboard({ navigate, logout, user }) {
               {isAr?"تم":"Done"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ════════════ FLOATING BOT WIDGET ════════════════════════ */}
+      {showWidget&&(
+        <div style={{position:"fixed",bottom:20,right:20,zIndex:9000,width:widgetMin?220:260,borderRadius:16,overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.1)",background:C.sidebar,fontFamily:"inherit"}}>
+          {/* Widget header */}
+          <div style={{background:"linear-gradient(135deg,#1e3a5f,#2d1b69)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <img src="/logo.png" alt="" style={{width:22,height:22,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+              <span style={{fontSize:13,fontWeight:700,color:"white"}}>OpportuBot</span>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setWidgetMin(p=>!p)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:16,lineHeight:1,padding:0}}>{widgetMin?"▲":"▼"}</button>
+              <button onClick={()=>setShowWidget(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:16,lineHeight:1,padding:0}}>×</button>
+            </div>
+          </div>
+          {!widgetMin&&(
+            <div style={{padding:"10px 14px",display:"flex",flexDirection:"column",gap:6}}>
+              {/* Last updated */}
+              <div style={{fontSize:10,color:C.muted,textAlign:"right"}}>Updated {new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</div>
+              {/* Deadline warning */}
+              {(stats?.deadline_soon??0)>0&&(
+                <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#f87171",fontWeight:600}}>
+                  ⚠️ {stats.deadline_soon} deadline(s) this week!
+                </div>
+              )}
+              {/* Stats list */}
+              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                {[
+                  {label:"Ready to Apply", val: stats?.ready ?? 0,    color:"#f59e0b"},
+                  {label:"New",            val: opps.filter(o=>(o.status||"new")==="new").length, color:"#9ca3af"},
+                  {label:"Applied",        val: stats?.applied ?? 0,  color:"#3b82f6"},
+                  {label:"Waiting",        val: opps.filter(o=>o.status==="waiting").length, color:"#8b5cf6"},
+                  {label:"Accepted",       val: stats?.accepted ?? 0, color:"#10b981"},
+                  {label:"Rejected",       val: stats?.rejected ?? 0, color:"#ef4444"},
+                  {label:"No Reply",       val: opps.filter(o=>o.status==="no_reply").length, color:"#d97706"},
+                ].map(s=>(
+                  <div key={s.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 4px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                      <span style={{fontSize:12,color:C.muted}}>{s.label}</span>
+                    </div>
+                    <span style={{fontSize:13,fontWeight:700,color:s.color}}>{s.val}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Open Dashboard button */}
+              <button onClick={()=>{setActivePage("dashboard");setFilterStatus("all");setActiveTab("all");setWidgetMin(true)}} style={{marginTop:4,padding:"8px",background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:12,width:"100%"}}>
+                🤖 Open Dashboard
+              </button>
+            </div>
+          )}
         </div>
       )}
 
