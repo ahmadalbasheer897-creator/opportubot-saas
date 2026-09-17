@@ -15,11 +15,9 @@ class Settings(BaseSettings):
     # Anthropic / Claude
     ANTHROPIC_API_KEY: str = ""
 
-    # Serper (Google Search)
-    SERPER_API_KEY: str = "07b618bd1d7179092191b332c6619cfcadc0345b"
-
-    # RapidAPI (LinkedIn)
-    RAPIDAPI_KEY: str = "a54b63e366msh560994524e87b12p191d39jsn98a3afad2490"
+    # Serper (Google Search) — set via environment, never hardcoded.
+    # The search backend is a no-op without it.
+    SERPER_API_KEY: str = ""
 
     # App
     OWNER_EMAIL: str = "ahmadalbasheer.897@gmail.com"
@@ -35,7 +33,7 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""      # from resend.com
 
     # Daily Digest
-    DIGEST_SECRET: str = "opportubot-digest-2026"  # change in Render env vars
+    DIGEST_SECRET: str = ""       # set in Render env vars
 
     # Lemon Squeezy (Payments)
     LSQ_API_KEY: str = ""

@@ -6,6 +6,7 @@ POST /digest/send?secret=<DIGEST_SECRET>
 Trigger this endpoint daily via an external cron service (e.g. cron-job.org).
 """
 import logging
+from hmac import compare_digest as secrets_compare
 from fastapi import APIRouter, Query, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -21,6 +22,14 @@ settings = get_settings()
 router = APIRouter(prefix="/digest", tags=["Digest"])
 
 
+def _verify_secret(secret: str):
+    """Reject when DIGEST_SECRET is unset, otherwise an empty ?secret= would match."""
+    if not settings.DIGEST_SECRET:
+        raise HTTPException(status_code=503, detail="Digest is not configured")
+    if not secrets_compare(secret, settings.DIGEST_SECRET):
+        raise HTTPException(status_code=401, detail="Invalid secret")
+
+
 @router.post("/send")
 async def send_digest(
     secret: str = Query(..., description="Must match DIGEST_SECRET env var"),
@@ -30,8 +39,7 @@ async def send_digest(
     Send daily digest emails to all active verified users.
     Secured by a shared secret (set DIGEST_SECRET in Render env vars).
     """
-    if secret != settings.DIGEST_SECRET:
-        raise HTTPException(status_code=401, detail="Invalid secret")
+    _verify_secret(secret)
 
     # All active, email-verified users
     users = db.query(User).filter(
@@ -106,8 +114,7 @@ async def test_digest(
     db: Session = Depends(get_db),
 ):
     """Send a test digest to a specific email (uses their real opportunities)."""
-    if secret != settings.DIGEST_SECRET:
-        raise HTTPException(status_code=401, detail="Invalid secret")
+    _verify_secret(secret)
 
     user = db.query(User).filter(User.email == email).first()
     if not user:

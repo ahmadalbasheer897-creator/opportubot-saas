@@ -41,7 +41,7 @@ railway up
 ### 4. إعداد متغيرات البيئة في Railway
 ```
 ANTHROPIC_API_KEY = sk-ant-...
-SERPER_API_KEY    = 07b618bd...
+SERPER_API_KEY    = <your serper.dev key>
 OWNER_EMAIL       = ahmadalbasheer.897@gmail.com
 SECRET_KEY        = any-random-secret-string
 ```
