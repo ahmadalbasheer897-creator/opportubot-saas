@@ -96,26 +96,35 @@ def run_migrations():
         )
         """
 
-    with engine.connect() as conn:
-        for table, col, df in columns_to_add:
-            sql = f"ALTER TABLE {table} ADD COLUMN {col} {df}"
-            try:
-                conn.execute(text(sql))
-                print(f"Added column {col} to table {table}")
-            except Exception as e:
-                err_msg = str(e).lower()
-                if "duplicate column name" in err_msg or "already exists" in err_msg:
-                    pass
-                else:
-                    print(f"Failed to add column {col} to table {table}: {e}")
-        
+    # Each statement gets its OWN transaction. On PostgreSQL a failed statement
+    # aborts the entire transaction, so sharing one connection meant the first
+    # "column already exists" poisoned every ALTER after it — silently, because
+    # the follow-up InFailedSqlTransaction errors were swallowed by the same
+    # except. SQLite does not behave that way, which is why this stayed hidden.
+    added, skipped, failed = 0, 0, 0
+    for table, col, df in columns_to_add:
+        sql = f"ALTER TABLE {table} ADD COLUMN {col} {df}"
         try:
-            conn.execute(text(site_visits_sql))
-            print("Verified site_visits table")
+            with engine.begin() as conn:
+                conn.execute(text(sql))
+            added += 1
+            print(f"Added column {col} to table {table}")
         except Exception as e:
-            print(f"Failed to verify/create site_visits table: {e}")
-            
-        conn.commit()
+            err_msg = str(e).lower()
+            if "duplicate column name" in err_msg or "already exists" in err_msg:
+                skipped += 1
+            else:
+                failed += 1
+                print(f"Failed to add column {col} to table {table}: {e}")
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(site_visits_sql))
+        print("Verified site_visits table")
+    except Exception as e:
+        print(f"Failed to verify/create site_visits table: {e}")
+
+    print(f"Migrations: {added} added, {skipped} already present, {failed} failed")
 
 
 
