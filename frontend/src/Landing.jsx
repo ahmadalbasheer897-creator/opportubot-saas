@@ -184,7 +184,7 @@ export default function Landing({ navigate }) {
       }}>
         <div style={{ fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="OpportuBot"
             style={{ width: 40, height: 40, objectFit: "contain", animation: "float 3s ease-in-out infinite" }}
           />

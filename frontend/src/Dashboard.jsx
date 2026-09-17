@@ -802,7 +802,7 @@ export default function Dashboard({ navigate, logout, user }) {
           onClick={() => navigate("dashboard")}
         >
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="OpportuBot"
             style={{width:38,height:38,objectFit:"contain",animation:"float 3s ease-in-out infinite"}}
           />
@@ -940,7 +940,7 @@ export default function Dashboard({ navigate, logout, user }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.sidebar,padding:"12px 16px",borderRadius:12,border:"1px solid "+C.border,marginBottom:20}}>
             <button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",color:C.text,fontSize:22,cursor:"pointer"}}>☰</button>
             <div className="logo-container" style={{fontSize:15,fontWeight:800,display:"flex",alignItems:"center",gap:6,color:C.text,direction:"ltr"}}>
-              <img src="/logo.png" alt="OpportuBot" style={{width:30,height:30,objectFit:"contain",animation:"float 3s ease-in-out infinite"}}/>
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="OpportuBot" style={{width:30,height:30,objectFit:"contain",animation:"float 3s ease-in-out infinite"}}/>
               <span>OpportuBot</span>
             </div>
             <button style={{background:C.card,border:"1px solid "+C.border,borderRadius:7,padding:"4px 10px",color:C.text,fontSize:11,cursor:"pointer"}} onClick={toggleLang}>{isAr?"EN":"عربي"}</button>
@@ -1526,7 +1526,7 @@ export default function Dashboard({ navigate, logout, user }) {
           {/* Widget header */}
           <div style={{background:"linear-gradient(135deg,#1e3a5f,#2d1b69)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <img src="/logo.png" alt="" style={{width:22,height:22,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" style={{width:22,height:22,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
               <span style={{fontSize:13,fontWeight:700,color:"white"}}>OpportuBot</span>
             </div>
             <div style={{display:"flex",gap:8}}>

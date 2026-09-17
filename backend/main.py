@@ -134,6 +134,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "https://prismatic-kelpie-ece144.netlify.app",
+        "https://ahmadalbasheer897-creator.github.io",
     ],
     allow_credentials=True,
     allow_methods=["*"],
