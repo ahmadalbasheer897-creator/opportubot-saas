@@ -14,6 +14,10 @@ import json
 router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
 
 FREE_DAILY_LIMIT = 5
+# Cover letters and interview prep are generative calls and cost several times
+# what a search costs, so free accounts get their own, tighter daily quota.
+FREE_DAILY_AI_LIMIT = 3
+GIFT_DAILY_AI_LIMIT = 15
 
 
 @router.get("")
@@ -95,6 +99,12 @@ def get_stats(
         "rejected": rejected,
         "deadline_soon": 0,
         "daily_searches": current_user.daily_searches,
+        "daily_ai_actions": current_user.daily_ai_actions or 0,
+        "daily_ai_limit": (
+            -1 if current_user.plan in (PlanType.owner, PlanType.pro)
+            else GIFT_DAILY_AI_LIMIT if current_user.plan == PlanType.gift
+            else FREE_DAILY_AI_LIMIT
+        ),
         "plan": current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan),
     }
 
@@ -111,6 +121,29 @@ def _check_and_increment_search(user: User, db: Session):
             detail=f"Daily search limit reached ({FREE_DAILY_LIMIT}/day). Upgrade to Pro for unlimited searches."
         )
     user.daily_searches += 1
+    db.commit()
+
+
+def _check_and_increment_ai(user: User, db: Session):
+    """Quota for generative AI actions. Owner and Pro are unlimited."""
+    if user.plan in (PlanType.owner, PlanType.pro):
+        return
+
+    now = datetime.now(timezone.utc)
+    last_reset = user.last_ai_reset
+    if last_reset and last_reset.date() < now.date():
+        user.daily_ai_actions = 0
+        user.last_ai_reset = now
+
+    cap = GIFT_DAILY_AI_LIMIT if user.plan == PlanType.gift else FREE_DAILY_AI_LIMIT
+    if (user.daily_ai_actions or 0) >= cap:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily AI limit reached ({cap}/day for cover letters and interview prep). "
+                   f"Upgrade to Pro for unlimited access.",
+        )
+
+    user.daily_ai_actions = (user.daily_ai_actions or 0) + 1
     db.commit()
 
 
@@ -165,6 +198,17 @@ async def cover_letter(
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
+    # Already generated in this language — replay it instead of paying again.
+    if opp.cover_letter and opp.cover_letter_lang == language:
+        return {
+            "cover_letter": opp.cover_letter,
+            "opportunity_title": opp.title,
+            "language": language,
+            "cached": True,
+        }
+
+    _check_and_increment_ai(current_user, db)
+
     text = await generate_cover_letter(
         opportunity_title=opp.title or "",
         opportunity_description=opp.description or "",
@@ -177,7 +221,16 @@ async def cover_letter(
     if not text:
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
-    return {"cover_letter": text, "opportunity_title": opp.title, "language": language}
+    opp.cover_letter = text
+    opp.cover_letter_lang = language
+    db.commit()
+
+    return {
+        "cover_letter": text,
+        "opportunity_title": opp.title,
+        "language": language,
+        "cached": False,
+    }
 
 
 @router.post("/{opp_id}/interview-prep")
@@ -195,6 +248,21 @@ async def interview_prep(
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
+    if opp.interview_questions and opp.interview_lang == language:
+        try:
+            cached = json.loads(opp.interview_questions)
+            return {
+                "questions": cached,
+                "opportunity_title": opp.title,
+                "language": language,
+                "total": len(cached),
+                "cached": True,
+            }
+        except (ValueError, TypeError):
+            pass  # corrupt cache — fall through and regenerate
+
+    _check_and_increment_ai(current_user, db)
+
     questions = await generate_interview_questions(
         opportunity_title=opp.title or "",
         opportunity_description=opp.description or "",
@@ -207,11 +275,16 @@ async def interview_prep(
     if not questions:
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
+    opp.interview_questions = json.dumps(questions, ensure_ascii=False)
+    opp.interview_lang = language
+    db.commit()
+
     return {
         "questions": questions,
         "opportunity_title": opp.title,
         "language": language,
         "total": len(questions),
+        "cached": False,
     }
 
 

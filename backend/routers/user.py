@@ -282,10 +282,10 @@ def redeem_gift(
 
 def _build_plan(user: User):
     limits = {
-        "free":  {"daily_searches": 5,  "ai_summary": False, "saved_limit": 20},
-        "pro":   {"daily_searches": -1, "ai_summary": True,  "saved_limit": -1},
-        "gift":  {"daily_searches": 50, "ai_summary": True,  "saved_limit": 100},
-        "owner": {"daily_searches": -1, "ai_summary": True,  "saved_limit": -1},
+        "free":  {"daily_searches": 5,  "ai_summary": False, "saved_limit": 20,  "daily_ai_actions": 3},
+        "pro":   {"daily_searches": -1, "ai_summary": True,  "saved_limit": -1,  "daily_ai_actions": -1},
+        "gift":  {"daily_searches": 50, "ai_summary": True,  "saved_limit": 100, "daily_ai_actions": 15},
+        "owner": {"daily_searches": -1, "ai_summary": True,  "saved_limit": -1,  "daily_ai_actions": -1},
     }
     plan_key = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
     plan_info = limits.get(plan_key, limits["free"])

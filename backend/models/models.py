@@ -34,6 +34,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     daily_searches = Column(Integer, default=0)
     last_search_reset = Column(DateTime(timezone=True), server_default=func.now())
+    # Separate quota for generative AI actions (cover letters, interview prep).
+    # These are far more expensive per call than a search, so they get their own counter.
+    daily_ai_actions = Column(Integer, default=0)
+    last_ai_reset = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Email verification
@@ -158,6 +162,12 @@ class UserOpportunity(Base):
     tags = Column(Text)
     ai_analysis = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    # Cached AI output — regenerating the same letter/questions costs money for
+    # an identical result, so the first generation is stored and replayed.
+    cover_letter = Column(Text, nullable=True)
+    cover_letter_lang = Column(String(20), nullable=True)
+    interview_questions = Column(Text, nullable=True)
+    interview_lang = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="user_opportunities")

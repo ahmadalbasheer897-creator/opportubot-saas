@@ -54,6 +54,8 @@ def run_migrations():
         ("users", "onboarding_done", "BOOLEAN DEFAULT FALSE"),
         ("users", "selected_sources", "TEXT"),
         ("users", "custom_sources", "TEXT"),
+        ("users", "daily_ai_actions", "INTEGER DEFAULT 0"),
+        ("users", "last_ai_reset", "TIMESTAMP" if is_sqlite else "TIMESTAMP WITH TIME ZONE"),
         # user_opportunities table
         ("user_opportunities", "ai_analysis", "TEXT"),
         ("user_opportunities", "score", "INTEGER DEFAULT 0"),
@@ -63,6 +65,10 @@ def run_migrations():
         ("user_opportunities", "deadline", "VARCHAR(100)"),
         ("user_opportunities", "source", "VARCHAR(255)"),
         ("user_opportunities", "notes", "TEXT"),
+        ("user_opportunities", "cover_letter", "TEXT"),
+        ("user_opportunities", "cover_letter_lang", "VARCHAR(20)"),
+        ("user_opportunities", "interview_questions", "TEXT"),
+        ("user_opportunities", "interview_lang", "VARCHAR(20)"),
     ]
     
     if is_sqlite:

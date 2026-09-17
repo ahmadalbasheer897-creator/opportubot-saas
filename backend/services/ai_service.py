@@ -6,6 +6,13 @@ from config import get_settings
 
 settings = get_settings()
 
+# Model choice is a cost decision, kept in one place.
+# FAST handles everything; QUALITY is reserved for long-form generation.
+# Haiku 4.5 costs $1/$5 per MTok vs Sonnet's $3/$15 — ~70% cheaper for
+# cover letters and interview prep, which are the highest-volume paid calls.
+MODEL_FAST = "claude-haiku-4-5-20251001"
+MODEL_QUALITY = "claude-haiku-4-5-20251001"
+
 
 def _client():
     return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -25,7 +32,7 @@ async def generate_search_summary(query: str, results) -> Optional[str]:
 اكتب ملخصاً بـ 2-3 جمل بالعربية يبرز أفضل الفرص ويحفّز المستخدم على التقديم."""
     try:
         msg = _client().messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=MODEL_FAST,
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -68,7 +75,7 @@ async def score_opportunities_batch(
 
     try:
         msg = _client().messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=MODEL_FAST,
             max_tokens=800,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -115,7 +122,7 @@ async def extract_cv_profile(cv_text: str) -> Dict:
 
     try:
         msg = _client().messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=MODEL_FAST,
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -133,7 +140,7 @@ async def enhance_opportunity_description(title: str, raw_description: str) -> s
         return raw_description
     try:
         msg = _client().messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=MODEL_FAST,
             max_tokens=200,
             messages=[{"role": "user", "content": f"Summarize in 2 sentences (Arabic):\nTitle: {title}\nDesc: {raw_description}"}],
         )
@@ -197,7 +204,7 @@ Return ONLY a JSON array, no other text:
 
     try:
         msg = _client().messages.create(
-            model="claude-sonnet-4-6",
+            model=MODEL_QUALITY,
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -255,7 +262,7 @@ Write the cover letter now:"""
 
     try:
         msg = _client().messages.create(
-            model="claude-sonnet-4-6",
+            model=MODEL_QUALITY,
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}],
         )
